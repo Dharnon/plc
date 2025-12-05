@@ -140,3 +140,50 @@ button:disabled {
 .reset-btn:hover {
   background-color: #f44336;
 }
+
+/* Thermal Grid Styles */
+.thermal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15px, 1fr));
+  gap: 2px;
+  width: 100%;
+  max-width: 800px;
+  background: #000;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #333;
+}
+
+.thermal-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 1px;
+  transition: background-color 0.1s;
+}
+
+.stats-panel {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+  width: 100%;
+  justify-content: space-around;
+}
+
+.stat-box {
+  background: #2a2a2a;
+  padding: 1rem;
+  border-radius: 8px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.stat-box h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+}

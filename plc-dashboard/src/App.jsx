@@ -3,18 +3,21 @@ import io from 'socket.io-client'
 import './App.css'
 
 // Conectamos al servidor Node.js
-// Asegúrate de que el puerto coincida con el del servidor (3001)
-const socket = io('http://localhost:3001');
+// En desarrollo usa localhost:3001, en producción usa la variable de entorno o la misma URL del host
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const socket = io(SOCKET_URL, {
+  transports: ['websocket'], // Forzar WebSocket para evitar problemas de Sticky Session en LB
+  upgrade: false
+});
 
 function App() {
-  const [temperatura, setTemperatura] = useState(0);
+  const [temperaturas, setTemperaturas] = useState([]); // Array de temperaturas
   const [socketConectado, setSocketConectado] = useState(false);
   const [plcConectado, setPlcConectado] = useState(false);
   const [count, setCount] = useState(0);
   const [latency, setLatency] = useState(1000);
 
   useEffect(() => {
-    // Escuchar evento de conexión
     socket.on('connect', () => {
       console.log("✅ Conectado al servidor Socket.io");
       setSocketConectado(true);
@@ -26,27 +29,29 @@ function App() {
       setPlcConectado(false);
     });
 
-    // Nuevo evento para saber si Node.js está conectado al PLC real
     socket.on('plc-status', (status) => {
       setPlcConectado(status.connected);
     });
 
-    // Escuchar datos del PLC
     socket.on('plc-data', (data) => {
-      // console.log("Recibido:", data);
-      setTemperatura(data.temperatura);
+      // data.temperatura ahora es un array
+      if (Array.isArray(data.temperatura)) {
+        setTemperaturas(data.temperatura);
+      } else {
+        // Fallback por si llega un solo valor
+        setTemperaturas([data.temperatura]);
+      }
       setCount(prev => prev + 1);
     });
 
-    // Limpieza al desmontar
     return () => {
       socket.off('connect');
       socket.off('disconnect');
+      socket.off('plc-status');
       socket.off('plc-data');
     };
   }, []);
 
-  // Calcular color basado en temperatura
   const getColor = (temp) => {
     if (temp < 30) return '#00ff00'; // Verde
     if (temp < 60) return '#ffff00'; // Amarillo
@@ -58,10 +63,15 @@ function App() {
     socket.emit('change-interval', ms);
   };
 
+  // Cálculos estadísticos
+  const maxTemp = temperaturas.length > 0 ? Math.max(...temperaturas).toFixed(1) : 0;
+  const minTemp = temperaturas.length > 0 ? Math.min(...temperaturas).toFixed(1) : 0;
+  const avgTemp = temperaturas.length > 0 ? (temperaturas.reduce((a, b) => a + b, 0) / temperaturas.length).toFixed(1) : 0;
+
   return (
     <div className="dashboard">
       <header>
-        <h1>🏭 Monitor Industrial PLC</h1>
+        <h1>Monitor Térmico Industrial (500 Puntos)</h1>
         <div className={`status-indicator ${plcConectado ? 'online' : 'offline'}`}>
           {plcConectado ? 'ONLINE' : 'OFFLINE'}
         </div>
@@ -69,14 +79,34 @@ function App() {
 
       <main>
         <div className="card">
-          <h2>Temperatura Horno 1</h2>
-          <div className="gauge" style={{ borderColor: getColor(temperatura) }}>
-            <span className="value" style={{ color: getColor(temperatura) }}>
-              {temperatura}°C
-            </span>
+          <div className="stats-panel">
+            <div className="stat-box">
+              <h3>Máxima</h3>
+              <span className="stat-value" style={{ color: getColor(maxTemp) }}>{maxTemp}°C</span>
+            </div>
+            <div className="stat-box">
+              <h3>Promedio</h3>
+              <span className="stat-value" style={{ color: getColor(avgTemp) }}>{avgTemp}°C</span>
+            </div>
+            <div className="stat-box">
+              <h3>Mínima</h3>
+              <span className="stat-value" style={{ color: getColor(minTemp) }}>{minTemp}°C</span>
+            </div>
           </div>
+
+          <div className="thermal-grid">
+            {temperaturas.map((temp, index) => (
+              <div
+                key={index}
+                className="thermal-cell"
+                style={{ backgroundColor: getColor(temp) }}
+                title={`Sensor ${index + 1}: ${temp}°C`}
+              ></div>
+            ))}
+          </div>
+
           <div className="counter-display">
-            <p>Datos recibidos: <strong>{count}</strong></p>
+            <p>Paquetes recibidos: <strong>{count}</strong></p>
             <button className="reset-btn" onClick={() => setCount(0)}>🗑️ Reset</button>
           </div>
           <p>Latencia: <strong>{latency}ms</strong></p>
