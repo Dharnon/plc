@@ -8,16 +8,16 @@ El sistema actúa como una pasarela (Gateway) que traduce el protocolo industria
 
 ```mermaid
 graph TD
-    subgraph "Planta / PLC"
-        PLC[PLC (Servidor OPC UA)]
-        PLC_VAR[Variables: Temperatura, Estado]
+    subgraph Planta ["Planta / PLC"]
+        PLC["PLC (Servidor OPC UA)"]
+        PLC_VAR["Variables: Temperatura, Estado"]
         PLC --> PLC_VAR
     end
 
-    subgraph "Middleware (Node.js)"
-        NODE[Node.js Server]
-        OPC_CLIENT[Cliente OPC UA (node-opcua)]
-        SOCKET_SERVER[Servidor Socket.io]
+    subgraph Middleware ["Middleware (Node.js)"]
+        NODE["Node.js Server"]
+        OPC_CLIENT["Cliente OPC UA (node-opcua)"]
+        SOCKET_SERVER["Servidor Socket.io"]
         
         NODE --> OPC_CLIENT
         NODE --> SOCKET_SERVER
@@ -25,9 +25,9 @@ graph TD
         OPC_CLIENT --"OPC TCP (Puerto 4840)"--> PLC
     end
 
-    subgraph "Frontend (Usuario)"
-        WEB[Dashboard React]
-        WEB_SOCKET[Cliente Socket.io]
+    subgraph Frontend ["Frontend (Usuario)"]
+        WEB["Dashboard React"]
+        WEB_SOCKET["Cliente Socket.io"]
         
         WEB --> WEB_SOCKET
         WEB_SOCKET --"WebSockets (Tiempo Real)"--> SOCKET_SERVER
