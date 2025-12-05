@@ -1,58 +1,32 @@
 version: '3'
+
 services:
-  # --- HOST 1 ---
-  backend1:
+  # --- BACKEND (Solo 1 instancia) ---
+  backend:
+    # Nombre explícito de la imagen para poder exportarla/importarla
+    image: galactic-backend:latest
     build: ./proyecto-plc
-    container_name: host1_backend
-    environment:
-      - PORT=3001
-    networks:
-      - plc-network
-
-  # --- HOST 2 ---
-  backend2:
-    build: ./proyecto-plc
-    container_name: host2_backend
-    environment:
-      - PORT=3001
-    networks:
-      - plc-network
-
-  # --- HOST 3 ---
-  backend3:
-    build: ./proyecto-plc
-    container_name: host3_backend
-    environment:
-      - PORT=3001
-    networks:
-      - plc-network
-
-  # --- LOAD BALANCER (El "Router") ---
-  loadbalancer:
-    image: nginx:alpine
-    container_name: loadbalancer
-    volumes:
-      - ./nginx-lb/nginx.conf:/etc/nginx/nginx.conf:ro
+    container_name: plc_backend
     ports:
-      - "8080:80" # Accedemos al cluster por el puerto 8080
-    depends_on:
-      - backend1
-      - backend2
-      - backend3
+      - "3001:3001" # Exponemos directo porque no hay Load Balancer
+    environment:
+      - PORT=3001
     networks:
       - plc-network
 
-  # --- FRONTEND (Dashboard) ---
+  # --- FRONTEND ---
   frontend:
-    build: 
+    # Nombre explícito de la imagen
+    image: galactic-frontend:latest
+    build:
       context: ./plc-dashboard
+      # NOTA: Si la VM tiene una IP específica (ej. 192.168.1.50), 
+      # deberías cambiar localhost por esa IP para que tu navegador conecte al backend.
       args:
-        - VITE_API_URL=http://localhost:8080 # El frontend se conecta al Load Balancer
-    container_name: frontend_dashboard
+        - VITE_API_URL=http://localhost:3001
+    container_name: plc_frontend
     ports:
       - "3000:80"
-    depends_on:
-      - loadbalancer
     networks:
       - plc-network
 

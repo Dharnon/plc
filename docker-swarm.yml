@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # --- BACKEND (Node.js) ---
+  backend:
+    image: my-registry/proyecto-plc:latest # En Swarm necesitas una imagen construida y accesible (Registry)
+    build: ./proyecto-plc
+    networks:
+      - plc-network
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.labels.type == host1
+      restart_policy:
+        condition: on-failure
+
+  # --- FRONTEND (React) ---
+  frontend:
+    image: my-registry/plc-dashboard:latest
+    build: 
+      context: ./plc-dashboard
+      args:
+        - VITE_API_URL=http://localhost:8080
+    ports:
+      - "3000:80"
+    networks:
+      - plc-network
+    deploy:
+      placement:
+        constraints:
+          - node.labels.type == host1
+      restart_policy:
+        condition: on-failure
+
+  # --- LOAD BALANCER ---
+  loadbalancer:
+    image: nginx:alpine
+    volumes:
+      - ./nginx-lb/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+    networks:
+      - plc-network
+    deploy:
+      mode: global # Una instancia en CADA nodo del cluster (o usa constraints para uno específico)
+      placement:
+        constraints:
+          - node.role == manager
+
+networks:
+  plc-network:
+    driver: overlay # En Swarm usamos 'overlay' para comunicar hosts distintos
