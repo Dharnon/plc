@@ -23,7 +23,7 @@ services:
       # NOTA: Si la VM tiene una IP específica (ej. 192.168.1.50), 
       # deberías cambiar localhost por esa IP para que tu navegador conecte al backend.
       args:
-        - VITE_API_URL=http://localhost:3001
+        - VITE_API_URL=http://20.36.0.145:3001
     container_name: plc_frontend
     ports:
       - "3000:80"
