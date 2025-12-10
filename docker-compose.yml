@@ -11,6 +11,7 @@ services:
       - "3001:3001" # Exponemos directo porque no hay Load Balancer
     environment:
       - PORT=3001
+      - PLC_URL=opc.tcp://20.36.0.50:4840 # CAMBIA ESTO SI LA IP ES DIFERENTE
     networks:
       - plc-network
 

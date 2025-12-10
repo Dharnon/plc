@@ -63,7 +63,8 @@ client.on("start_reconnection", () => {
     io.emit('plc-status', { connected: false });
 });
 
-const endpointUrl = "opc.tcp://20.36.0.50:4840";
+const endpointUrl = process.env.PLC_URL || "opc.tcp://20.36.0.50:4840";
+console.log(`🔌 Endpoint configurado: ${endpointUrl}`);
 
 io.on('connection', (socket) => {
     console.log('Cliente conectado');
@@ -165,7 +166,7 @@ async function conectarPLC() {
     let conectado = false;
     while (!conectado) {
         try {
-            console.log("🔌 Intentando conectar al PLC...");
+            console.log(`🔌 Intentando conectar al PLC en: ${endpointUrl}`);
             await client.connect(endpointUrl);
             console.log("✅ ¡Conectado al PLC!");
             io.emit('plc-status', { connected: true });
@@ -175,7 +176,7 @@ async function conectarPLC() {
             await iniciarMonitorizacion();
 
         } catch (error) {
-            console.log("❌ Error al conectar:", error.message);
+            console.log("❌ Error al conectar Details:", error.message || error);
             io.emit('plc-status', { connected: false });
             console.log("⏳ Reintentando en 2 segundos...");
             await new Promise(resolve => setTimeout(resolve, 2000));
