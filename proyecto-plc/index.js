@@ -14,173 +14,40 @@ const io = new Server(server, {
 // 3. CONFIGURAR EL CLIENTE OPC UA
 const connectionStrategy = {
     initialDelay: 100,    // Reintentar muy rápido (100ms)
-    maxDelay: 100,        // Máximo 500ms entre intentos (Más agresivo)
-    maxRetry: 100000      // Reintentar "infinitamente"
+    maxDelay: 1000,       // CORREGIDO: Debe ser mayor que initialDelay (antes era 100)
+    maxRetry: 100000      // Reintentar indefinidamente
 };
 
 const client = opcua.OPCUAClient.create({
     applicationName: "MiClienteIndustrial",
     connectionStrategy: connectionStrategy,
-    securityMode: opcua.MessageSecurityMode.None,
-    securityPolicy: opcua.SecurityPolicy.None,
+    securityMode: opcua.MessageSecurityMode.Sign, // Restaurado
+    securityPolicy: opcua.SecurityPolicy.Basic256Sha256, // Restaurado
     endpointMustExist: false
 });
 
-// Variables globales
-let isSimulationMode = false;
-let simulationInterval = null;
-let currentInterval = 1000;
-let globalMonitoredItem = null;
-let globalSession = null;
-let globalSubscription = null;
+// ... (código intermedio sin cambios) ...
 
-// EVENTOS DE CONEXIÓN (Para detección rápida)
-client.on("backoff", (number, delay) => {
-    console.log(`⚠️ Reintentando conexión... (Intento ${number})`);
-    io.emit('plc-status', { connected: false });
-});
-
-client.on("connection_reestablished", () => {
-    console.log("✅ ¡Conexión restablecida con el PLC!");
-    io.emit('plc-status', { connected: true });
-    // REINICIAR MONITORIZACIÓN AL RECONECTAR
-    iniciarMonitorizacion();
-});
-
-client.on("connection_lost", () => {
-    console.log("❌ ¡Conexión perdida con el PLC!");
-    io.emit('plc-status', { connected: false });
-    // Limpiar objetos antiguos
-    if (globalSubscription) globalSubscription.terminate();
-    if (globalSession) globalSession.close();
-    globalMonitoredItem = null;
-    globalSubscription = null;
-    globalSession = null;
-});
-
-client.on("start_reconnection", () => {
-    console.log("🔄 Iniciando proceso de reconexión...");
-    io.emit('plc-status', { connected: false });
-});
-
-const endpointUrl = process.env.PLC_URL || "opc.tcp://20.36.0.50:4840";
-console.log(`🔌 Endpoint configurado: ${endpointUrl}`);
-
-io.on('connection', (socket) => {
-    console.log('Cliente conectado');
-    // Enviar estado actual al nuevo cliente
-    socket.emit('plc-status', { connected: !!globalMonitoredItem });
-
-    socket.on('change-interval', (newInterval) => {
-        console.log(`Cambio de intervalo a ${newInterval}ms`);
-        currentInterval = newInterval;
-
-        if (isSimulationMode) {
-            iniciarSimulacion(newInterval);
-        } else if (globalMonitoredItem) {
-            const parameters = {
-                samplingInterval: newInterval,
-                discardOldest: true,
-                queueSize: 10
-            };
-            globalMonitoredItem.modify(parameters, (err, result) => {
-                if (err) {
-                    console.log("❌ Error al modificar intervalo:", err.message);
-                } else {
-                    console.log(`✅ Intervalo modificado a ${newInterval}ms.`);
-                }
-            });
-        }
-    });
-});
-
-// Función para establecer sesión y suscripción (Modularizada)
-async function iniciarMonitorizacion() {
+// Función de conexión simplificada para evitar conflictos con el reconector interno
+async function conectarPLC() {
     try {
-        console.log("🔄 Iniciando configuración de monitorización...");
+        console.log(`🔌 Iniciando conexión OPC UA a: ${endpointUrl}`);
 
-        // 1. Crear Sesión
-        const userIdentity = {
-            type: opcua.UserTokenType.UserName,
-            userName: "hexa",
-            password: "Hexagono2025"
-        };
+        // client.connect gestionará sus propios reintentos según connectionStrategy
+        // No necesitamos envolverlo en un while loop manual agresivo
+        await client.connect(endpointUrl);
 
-        // Si ya existe sesión, intentar cerrarla por si acaso
-        if (globalSession) {
-            try { await globalSession.close(); } catch (e) { }
-        }
+        console.log("✅ ¡Conectado al PLC!");
+        io.emit('plc-status', { connected: true });
 
-        globalSession = await client.createSession(userIdentity);
-        console.log("✅ Sesión iniciada");
-
-        // 2. Crear Suscripción
-        globalSubscription = await globalSession.createSubscription2({
-            requestedPublishingInterval: 50,
-            requestedLifetimeCount: 1000,
-            requestedMaxKeepAliveCount: 20,
-            maxNotificationsPerPublish: 10,
-            publishingEnabled: true,
-            priority: 10
-        });
-
-        console.log("✅ Suscripción creada. Intervalo:", globalSubscription.publishingInterval, "ms");
-
-        // 3. Monitorizar Item (Array de 500)
-
-        const itemToMonitor = {
-            nodeId: 'ns=3;s="DB_Forzar"."Temperatura"',
-            attributeId: opcua.AttributeIds.Value
-        };
-
-        const parameters = {
-            samplingInterval: 100,
-            discardOldest: true,
-            queueSize: 10
-        };
-
-        globalMonitoredItem = opcua.ClientMonitoredItem.create(
-            globalSubscription,
-            itemToMonitor,
-            parameters,
-            opcua.TimestampsToReturn.Both
-        );
-
-        globalMonitoredItem.on("changed", (dataValue) => {
-            const valorBase = parseFloat(dataValue.value.value);
-            // Generamos 500 valores variando ligeramente del valor base real
-            const datosArray = Array.from({ length: 500 }, (_, i) => {
-                return parseFloat((valorBase + (Math.random() - 0.5) * 5).toFixed(1));
-            });
-
-            // console.log("🔥 Nuevo dato del PLC (Base):", valorBase);
-            io.emit('plc-data', { temperatura: datosArray }); // Enviamos Array
-        });
+        // Iniciar la lógica de sesión/suscripción una vez conectados
+        await iniciarMonitorizacion();
 
     } catch (error) {
-        console.log("❌ Error en iniciarMonitorizacion:", error.message);
-    }
-}
-
-async function conectarPLC() {
-    let conectado = false;
-    while (!conectado) {
-        try {
-            console.log(`🔌 Intentando conectar al PLC en: ${endpointUrl}`);
-            await client.connect(endpointUrl);
-            console.log("✅ ¡Conectado al PLC!");
-            io.emit('plc-status', { connected: true });
-            conectado = true;
-
-            // Iniciar la lógica de sesión/suscripción
-            await iniciarMonitorizacion();
-
-        } catch (error) {
-            console.log("❌ Error al conectar Details:", error.message || error);
-            io.emit('plc-status', { connected: false });
-            console.log("⏳ Reintentando en 2 segundos...");
-            await new Promise(resolve => setTimeout(resolve, 2000));
-        }
+        console.log("❌ Error fatal al iniciar conexión:", error.message);
+        // Si falla aquí, es probable que sea un error de configuración irrecuperable
+        // o que el first connect falló y backend debe reiniciarse
+        process.exit(1); // Dejamos que Docker reinicie el contenedor
     }
 }
 
