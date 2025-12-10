@@ -21,8 +21,8 @@ const connectionStrategy = {
 const client = opcua.OPCUAClient.create({
     applicationName: "MiClienteIndustrial",
     connectionStrategy: connectionStrategy,
-    securityMode: opcua.MessageSecurityMode.Sign,
-    securityPolicy: opcua.SecurityPolicy.Basic256Sha256,
+    securityMode: opcua.MessageSecurityMode.None,
+    securityPolicy: opcua.SecurityPolicy.None,
     endpointMustExist: false
 });
 
