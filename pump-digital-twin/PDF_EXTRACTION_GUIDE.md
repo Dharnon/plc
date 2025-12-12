@@ -130,7 +130,7 @@ Hemos decidido procesar **todo** en el navegador del usuario (Client-Side) en lu
 | :--- | :--- | :--- |
 | **Velocidad UX** | **Instantánea**. El usuario ve los datos parseados en milisegundos. | **Lenta**. Requiere subir el archivo (Upload) -> Procesar -> Bajar JSON. |
 | **Coste Servidor** | **Cero**. Usa la CPU del usuario. | **Alto**. Si 100 usuarios suben Excel a la vez, el servidor sufre. |
-| **Privacidad** | **Máxima**. El Excel original nunca sale del PC del usuario. Solo se envían los datos finales validados. | **Media**. El archivo debe viajar y almacenarse temporalmente en el servidor. |
+| **Privacidad** | **Máxima**. El Excel original nunca sale del PC del usuario. Solo se envían los datos finales validados.(Amenos que queramos que se envie lo cual se podria hacer) | **Media**. El archivo debe viajar y almacenarse temporalmente en el servidor. |
 | **Complejidad** | Baja. Librerías JS estándar (`xlsx`, `pdfjs-dist`). | Media. Requiere gestión de `multipart/form-data`, limpieza de temporales, etc. |
 
 **Conclusión:** Para una aplicación moderna y ágil como este Dashboard, el procesamiento en cliente ofrece la mejor experiencia de usuario y reduce costes de infraestructura. Solo usaríamos backend si necesitáramos procesar archivos gigantes de fondo (Batch Processing) sin el usuario presente.
