@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    /* #0B0E14 */
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 186 100% 50%;
+    /* Cyan #00E5FF */
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 32% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 186 100% 50%;
+    /* Match Primary */
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .input-field {
+    @apply w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-3 pr-12 text-white focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none font-mono;
+  }
+
+  .input-field-sm {
+    @apply w-full bg-slate-900/50 border border-white/10 rounded px-3 py-2 text-sm font-medium text-white focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 outline-none font-mono placeholder:text-slate-700;
+  }
+}
