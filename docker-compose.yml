@@ -18,9 +18,9 @@ services:
   # --- FRONTEND ---
   frontend:
     # Nombre explícito de la imagen
-    image: galactic-frontend:latest
+    image: galactic-frontend-pump:latest
     build:
-      context: ./plc-dashboard
+      context: ./pump-digital-twin
       # NOTA: Si la VM tiene una IP específica (ej. 192.168.1.50), 
       # deberías cambiar localhost por esa IP para que tu navegador conecte al backend.
       args:
