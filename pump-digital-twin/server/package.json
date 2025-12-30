@@ -13,7 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@prisma/client": "^6.1.0",
+    "@prisma/client": "^7.2.0",
     "@types/multer": "^2.0.0",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
@@ -21,8 +21,8 @@
     "express": "^5.2.1",
     "multer": "^2.0.2",
     "pg": "^8.13.1",
-    "puppeteer": "^24.33.0",
-    "xlsx": "^0.18.5"
+    "puppeteer": "^24.34.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
   },
   "devDependencies": {
     "@types/compression": "^1.8.1",
