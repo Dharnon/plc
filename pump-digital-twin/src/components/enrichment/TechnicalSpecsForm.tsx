@@ -33,7 +33,7 @@ const TESTS_TO_PERFORM = [
 
 export function TechnicalSpecsForm({ testId, generalInfo, initialValues, initialTests, pdfFile }: TechnicalSpecsFormProps) {
     const navigate = useNavigate();
-    const { updateTest, generateTest } = usePumpStore(); // Use generateTest
+    const { generateTest } = usePumpStore(); // Removed unused updateTest
     const [testsToPerform, setTestsToPerform] = useState<TestsToPerform>(initialTests || {});
     const [isExtracting, setIsExtracting] = useState(false);
 
