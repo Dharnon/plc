@@ -1,5 +1,7 @@
 
 import express from 'express';
+import { Prisma } from '@prisma/client';
+
 import cors from 'cors';
 import puppeteer from 'puppeteer';
 import path from 'path';
@@ -46,7 +48,7 @@ app.post('/api/import-excel', upload.single('file'), async (req: any, res: any) 
         const rawData = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
         const dataRows = rawData.slice(2);
 
-        const newRecords = [];
+        const newRecords: Prisma.PedidoImportadoCreateManyInput[] = [];
 
         for (const row of dataRows) {
             if (!row || row.length === 0) continue;
@@ -80,7 +82,7 @@ app.post('/api/import-excel', upload.single('file'), async (req: any, res: any) 
         }
 
         // Transaction: Clear processed:false from Staging and Insert new
-        await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             // "al importar un nuevo excel todos los demas que esten sin procesar anteriores se eliminan"
             // We assume "sin procesar" matches processed: false
             await tx.pedidoImportado.deleteMany({
@@ -177,7 +179,7 @@ app.post('/api/tests/generate', async (req, res) => {
     console.log('Generating test for:', id);
 
     try {
-        await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             // 1. Resolve Dependencies
 
             // Client: Find or Create
