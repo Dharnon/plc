@@ -94,6 +94,7 @@ export default function TestDetail() {
                     {/* Forms */}
                     <TechnicalSpecsForm
                         testId={test.id}
+                        generalInfo={generalInfo} // Pass the prop
                         initialValues={test.specs}
                         initialTests={test.testsToPerform}
                         pdfFile={pdfFile}

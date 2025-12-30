@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { technicalSpecsSchema } from "@/lib/schemas";
 import type { TechnicalSpecsFormValues } from "@/lib/schemas";
 import { usePumpStore } from "@/store/usePumpStore";
-import type { TechnicalSpecs, TestsToPerform } from "@/types";
+import type { TechnicalSpecs, TestsToPerform, GeneralInfo } from "@/types";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { UnitConverter } from "@/components/enrichment/UnitConverter";
 import { Check, Loader2, Wand2, FlaskConical, FileCheck, Droplets, Ruler, Gauge, Settings2 } from "lucide-react";
@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 
 interface TechnicalSpecsFormProps {
     testId: string;
+    generalInfo: GeneralInfo;
     initialValues?: Partial<TechnicalSpecs>;
     initialTests?: TestsToPerform;
     pdfFile: File | null;
@@ -29,9 +30,10 @@ const TESTS_TO_PERFORM = [
     { key: 'motorDelPedido', label: 'Motor Pedido' },
 ] as const;
 
-export function TechnicalSpecsForm({ testId, initialValues, initialTests, pdfFile }: TechnicalSpecsFormProps) {
+
+export function TechnicalSpecsForm({ testId, generalInfo, initialValues, initialTests, pdfFile }: TechnicalSpecsFormProps) {
     const navigate = useNavigate();
-    const updateTest = usePumpStore(s => s.updateTest);
+    const { updateTest, generateTest } = usePumpStore(); // Use generateTest
     const [testsToPerform, setTestsToPerform] = useState<TestsToPerform>(initialTests || {});
     const [isExtracting, setIsExtracting] = useState(false);
 
@@ -59,12 +61,17 @@ export function TechnicalSpecsForm({ testId, initialValues, initialTests, pdfFil
     });
 
     const onSubmit = async (data: TechnicalSpecsFormValues) => {
-        updateTest(testId, {
-            status: 'GENERATED',
-            specs: data as unknown as TechnicalSpecs,
-            testsToPerform,
-        });
-        navigate("/");
+        try {
+            await generateTest(testId, {
+                generalInfo,
+                specs: data as unknown as TechnicalSpecs,
+                testsToPerform,
+            });
+            navigate("/");
+        } catch (error) {
+            console.error("Error generating test", error);
+            alert("Error al generar la prueba. Revisa la conexión con el servidor.");
+        }
     };
 
     const handlePdfExtraction = async () => {

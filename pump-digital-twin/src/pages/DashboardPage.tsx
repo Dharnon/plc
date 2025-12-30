@@ -1,18 +1,21 @@
+import { useEffect } from "react";
 import { usePumpStore } from "@/store/usePumpStore";
 import { TestTable } from "@/components/dashboard/TestTable";
 import { ImportWizard } from "@/components/dashboard/ImportWizard";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Activity, ClipboardList, AlertCircle, Plus, RefreshCw } from "lucide-react";
-import { generateMockTests } from "@/lib/mockData";
+import { Activity, ClipboardList, AlertCircle, RefreshCw, Server } from "lucide-react";
 
 export default function DashboardPage() {
-    const { tests, getStats, addTests, setGlobalFilter, setTests, globalFilter } = usePumpStore();
+    const { tests, getStats, loadTests, setGlobalFilter, globalFilter, isLoading } = usePumpStore();
     const stats = getStats();
 
-    const clearAll = () => {
-        if (confirm('¿Eliminar todos los registros?')) {
-            setTests([]);
-        }
+    // Load tests on mount
+    useEffect(() => {
+        loadTests();
+    }, [loadTests]);
+
+    const handleRefresh = () => {
+        loadTests();
     };
 
     return (
@@ -40,23 +43,20 @@ export default function DashboardPage() {
                     <ImportWizard />
 
                     <GlassCard className="p-6 space-y-4">
-                        <h3 className="text-lg font-semibold text-white">Acciones Rápidas</h3>
+                        <h3 className="text-lg font-semibold text-white">Estado del Servidor</h3>
+                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                            <Server className="w-4 h-4 text-emerald-500" />
+                            <span>Conectado a API Local</span>
+                        </div>
+
                         <button
-                            onClick={() => addTests(generateMockTests(10))}
-                            className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg flex items-center justify-center gap-2 transition-colors border border-dashed border-cyan-500/30"
+                            onClick={handleRefresh}
+                            disabled={isLoading}
+                            className="w-full py-2 px-4 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg flex items-center justify-center gap-2 transition-colors border border-dashed border-cyan-500/30"
                         >
-                            <Plus className="w-4 h-4" />
-                            Simular 10 Registros
+                            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                            {isLoading ? 'Actualizando...' : 'Recargar Datos'}
                         </button>
-                        {tests.length > 0 && (
-                            <button
-                                onClick={clearAll}
-                                className="w-full py-2 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm"
-                            >
-                                <RefreshCw className="w-4 h-4" />
-                                Limpiar Todo
-                            </button>
-                        )}
                     </GlassCard>
                 </div>
 

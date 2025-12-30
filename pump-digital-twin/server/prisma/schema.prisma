@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- 1. Tablas Maestras ---
+
+model Fluido {
+  id                      Int     @id @default(autoincrement())
+  nombre                  String  @db.VarChar(100)
+  temperatura             Float?  @db.Real
+  viscosidad              Float?  @db.Real
+  densidad                Float?  @db.Real
+  caudal                  Float?  @db.Real
+  altura                  Float?  @db.Real
+  velocidad               Float?  @db.Real
+  potencia                Float?  @db.Real
+  rendimiento             Float?  @db.Real
+  caudalCoeficiente       Float?  @db.Real
+  alturaCoeficiente       Float?  @db.Real
+  rendimientoCoeficiente  Float?  @db.Real
+  npshRequerido           Float?  @db.Real
+}
+
+model Unidad {
+  id         Int         @id @default(autoincrement())
+  nombre     String      @db.VarChar(100)
+  parametros Parametro[]
+}
+
+model Motor {
+  id              Int      @id @default(autoincrement())
+  marca           String?  @db.VarChar(50)
+  tipo            String?  @db.VarChar(50)
+  potencia        Float?   @db.Real
+  velocidad       Float?   @db.Real
+  intensidad      Float?   @db.Real
+  rendimiento25   Float?   @db.Real
+  rendimiento50   Float?   @db.Real
+  rendimiento75   Float?   @db.Real
+  rendimiento100  Float?   @db.Real
+  rendimiento125  Float?   @db.Real
+  estado          Boolean  @default(true)
+  pruebas         Prueba[]
+}
+
+model Detalles {
+  id                          Int     @id @default(autoincrement())
+  esBombaVertical             Boolean @default(false)
+  comentario                  String? @db.VarChar(400)
+  correccionManometrica       Float?  @db.Real
+  presionAtmosferica          Float?  @db.Real
+  temperaturaAgua             Float?  @db.Real
+  temperaturaAmbiente         Float?  @db.Real
+  temperaturaLadoAcoplamiento Float?  @db.Real
+  temperaturaLadoBomba        Float?  @db.Real
+  tiempoFuncionamientoBomba   Float?  @db.Real
+  pruebas                     Prueba[]
+}
+
+model Banco {
+  id      Int      @id @default(autoincrement())
+  nombre  String   @db.VarChar(100)
+  estado  Boolean  @default(true)
+  pruebas Prueba[]
+}
+
+model Bomba {
+  id                 Int      @id @default(autoincrement())
+  item               String?  @db.VarChar(50)
+  tipoBomba          String?  @db.VarChar(50)
+  numeroSerie        String?  @db.VarChar(50)
+  diametroAspiracion Float?   @db.Real
+  diametroImpulsion  Float?   @db.Real
+  diametroRodete     String?  @db.VarChar(50)
+  tipoCierre         String?  @db.VarChar(50)
+  pruebas            Prueba[]
+}
+
+model Cliente {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(200)
+  direccion     String?  @db.VarChar(500)
+  contacto      String?  @db.VarChar(100)
+  telefono      String?  @db.VarChar(20)
+  email         String?  @db.VarChar(100)
+  estado        Boolean  @default(true)
+  fechaCreacion DateTime @default(now()) @db.Timestamptz
+  pruebas       Prueba[]
+}
+
+model Parametro {
+  id          Int     @id @default(autoincrement())
+  unidadId    Int
+  nombre      String? @db.VarChar(100)
+  tipoDato    String? @db.VarChar(100)
+  obligatorio Boolean @default(false)
+  activo      Boolean @default(true)
+
+  unidad    Unidad                    @relation(fields: [unidadId], references: [id])
+  valores   PruebaParametroValor[]
+  continuos PruebaParametroContinuo[]
+}
+
+model Prueba {
+  numeroProtocolo Int      @id @default(autoincrement())
+  detallesId      Int
+  motorId         Int
+  bombaId         Int
+  clienteId       Int
+  bancoId         Int
+  fecha           DateTime @default(now()) @db.Timestamptz
+
+  detalles Detalles @relation(fields: [detallesId], references: [id])
+  motor    Motor    @relation(fields: [motorId], references: [id])
+  bomba    Bomba    @relation(fields: [bombaId], references: [id])
+  cliente  Cliente  @relation(fields: [clienteId], references: [id])
+  banco    Banco    @relation(fields: [bancoId], references: [id])
+
+  valores   PruebaParametroValor[]
+  continuos PruebaParametroContinuo[]
+}
+
+// --- 2. Tablas de Datos (EAV) ---
+
+model PruebaParametroValor {
+  puntoId         Int
+  parametroId     Int
+  numeroProtocolo Int
+  valorEntero     Int?
+  valorDecimal    Float?    @db.Real
+  valorTexto      String?   @db.VarChar(100)
+  valorFecha      DateTime? @db.Timestamptz
+  valorBool       Boolean?
+
+  parametro Parametro @relation(fields: [parametroId], references: [id])
+  prueba    Prueba    @relation(fields: [numeroProtocolo], references: [numeroProtocolo])
+
+  @@id([puntoId, parametroId, numeroProtocolo])
+}
+
+// --- 3. Tabla Particionada (Definición Lógica en Prisma) ---
+// Nota: Prisma gestiona esto como una tabla normal a nivel de cliente.
+// Las particiones deben crearse vía SQL nativo si se desea esa optimización.
+
+model PruebaParametroContinuo {
+  fechaHora       DateTime @db.Timestamptz
+  parametroId     Int
+  numeroProtocolo Int
+  valorEntero     Int?
+  valorDecimal    Float?    @db.Real
+  valorTexto      String?   @db.VarChar(100)
+  valorFecha      DateTime? @db.Timestamptz
+  valorBool       Boolean?
+
+  parametro Parametro @relation(fields: [parametroId], references: [id])
+  prueba    Prueba    @relation(fields: [numeroProtocolo], references: [numeroProtocolo])
+
+  @@id([numeroProtocolo, parametroId, fechaHora])
+  @@index([numeroProtocolo, fechaHora(sort: Desc)])
+}
+
+// --- 4. Tabla de Staging (Buffer de Excel) ---
+// Esta tabla almacena los datos "en bruto" del CSV/Excel antes de ser "Generados"
+
+model PedidoImportado {
+  id            Int      @id @default(autoincrement())
+  pedido        String   @db.VarChar(100)
+  posicion      String   @db.VarChar(50)
+  modeloBomba   String   @db.VarChar(100)
+  ordenTrabajo  String   @db.VarChar(100)
+  cliente       String   @db.VarChar(200)
+  item          String?  @db.VarChar(100)
+  pedidoCliente String?  @db.VarChar(100)
+  numeroBombas  Int      @default(1)
+  
+  fechaImportacion DateTime @default(now()) @db.Timestamptz
+  procesado        Boolean  @default(false)
+}
