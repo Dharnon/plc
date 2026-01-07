@@ -1,6 +1,6 @@
 
 import express from 'express';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../prisma/generated/client';
 
 import cors from 'cors';
 import puppeteer from 'puppeteer';
@@ -349,7 +349,7 @@ app.post('/api/generate-pdf', async (req, res) => {
 });
 
 // Handle React routing, return all requests to React app
-app.get('*', (req, res) => {
+app.get('/{*path}', (req, res) => {
     res.sendFile(path.join(CLIENT_BUILD_PATH, 'index.html'));
 });
 
