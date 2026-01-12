@@ -52,6 +52,40 @@ export default function TestDetailPage() {
     const [saving, setSaving] = useState(false);
     const [pdfFile, setPdfFile] = useState<File | null>(null);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file && file.type === "application/pdf") {
+            setPdfFile(file);
+            setPdfUrl(URL.createObjectURL(file));
+            toast.info("Documento cargado");
+        } else if (file) {
+            toast.error("Por favor sube un archivo PDF válido");
+        }
+    };
 
     const fetchTest = useCallback(async () => {
         setLoading(true);
@@ -173,27 +207,29 @@ export default function TestDetailPage() {
     return (
         <div className="h-full flex flex-col overflow-hidden bg-background">
             {/* Minimal Header */}
-            <header className="flex items-center justify-between px-6 py-4 border-b bg-background/50 backdrop-blur-sm shrink-0">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2 text-muted-foreground hover:text-foreground" onClick={() => router.push("/supervisor")}>
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 border-b bg-background/50 backdrop-blur-sm shrink-0 gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2 text-muted-foreground hover:text-foreground shrink-0" onClick={() => router.push("/supervisor")}>
                         <ArrowLeft className="w-4 h-4" />
                     </Button>
-                    <div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>Pruebas</span>
-                            <ChevronRight className="w-3 h-3" />
-                            <span>{test.generalInfo.pedido}</span>
+                    <div className="min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium overflow-hidden">
+                            <span className="truncate">Pruebas</span>
+                            <ChevronRight className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{test.generalInfo.pedido}</span>
                         </div>
-                        <h1 className="text-xl font-semibold tracking-tight">{test.generalInfo.cliente}</h1>
+                        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate" title={test.generalInfo.cliente}>
+                            {test.generalInfo.cliente}
+                        </h1>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                     <StatusBadge status={test.status} />
                     <Button
                         onClick={handleSave}
                         disabled={saving || test.status === "SIN_PROCESAR"}
                         size="sm"
-                        className={test.status === "GENERADO" ? "hidden" : "bg-primary text-primary-foreground shadow-sm"}
+                        className={test.status === "GENERADO" ? "hidden" : "bg-red-600 hover:bg-red-700 text-white shadow-md active:scale-95 transition-all text-xs font-semibold px-4 h-9"}
                     >
                         {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
                         Finalizar Prueba
@@ -202,36 +238,67 @@ export default function TestDetailPage() {
             </header>
 
             {/* Resizable Content Split */}
-            <div className="flex-1 min-h-0">
-                <ResizablePanelGroup direction="horizontal">
+            <div className="flex-1 min-h-0 bg-slate-50/30">
+                <ResizablePanelGroup direction={isMobile ? "vertical" : "horizontal"} key={isMobile ? "v" : "h"}>
 
                     {/* PDF Area - Minimalist & Resizable */}
-                    <ResizablePanel defaultSize={45} minSize={30} className="relative flex flex-col bg-muted/10">
+                    <ResizablePanel defaultSize={45} minSize={30} className="relative flex flex-col bg-background transition-colors">
                         {pdfUrl ? (
-                            <>
-                                <div className="absolute top-4 right-4 z-10 flex gap-2">
-                                    <Button size="sm" variant="secondary" className="shadow-sm opacity-90 hover:opacity-100" onClick={() => document.getElementById('pdf-upload')?.click()}>
-                                        <RefreshCw className="w-3.5 h-3.5 mr-2" />
-                                        Cambiar PDF
+                            <div className="flex-1 flex flex-col min-h-0">
+                                {/* PDF Header - Full Width */}
+                                <div className="flex flex-row items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-background border-b shrink-0 gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-8 h-8 rounded bg-red-50 flex items-center justify-center shrink-0">
+                                            <FileText className="w-4 h-4 text-red-500" />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider leading-none mb-1">Visualizando archivo</span>
+                                            <span className="text-xs sm:text-sm font-semibold text-foreground truncate max-w-[200px] sm:max-w-[300px]" title={pdfFile?.name}>
+                                                {pdfFile?.name}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 justify-end">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 py-0 px-3 text-[11px] font-semibold border-slate-200 hover:bg-slate-50 hover:text-red-600 transition-colors shadow-sm whitespace-nowrap"
+                                            onClick={() => document.getElementById('pdf-upload')?.click()}
+                                        >
+                                            <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                                            Cambiar PDF
+                                        </Button>
+                                    </div>
+                                </div>
+                                {/* PDF Content - Full Width */}
+                                <iframe src={pdfUrl} className="flex-1 w-full border-none bg-muted/20" title="PDF Preview" />
+                            </div>
+                        ) : (
+                            <div className="flex-1 flex flex-col p-4 sm:p-8">
+                                <div
+                                    className={`
+                                        flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl transition-all duration-200 select-none min-h-[300px]
+                                        ${isDragging ? "border-red-400 bg-red-50/30" : "border-slate-200 hover:border-red-200 hover:bg-slate-50/50"}
+                                    `}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                >
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-red-50 flex items-center justify-center mb-4 sm:mb-6">
+                                        <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" />
+                                    </div>
+                                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3 px-4 text-center">Sube un reporte PDF</h3>
+                                    <p className="text-sm sm:text-base text-slate-500 max-w-sm text-center mb-6 sm:mb-8 leading-relaxed px-6">
+                                        Visualiza el reporte y extrae datos automáticamente.
+                                    </p>
+                                    <Button
+                                        className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-4 sm:py-5 h-auto text-sm sm:text-base rounded-lg shadow-md hover:shadow-lg transition-all font-semibold"
+                                        onClick={() => document.getElementById('pdf-upload')?.click()}
+                                    >
+                                        <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                                        Seleccionar PDF
                                     </Button>
                                 </div>
-                                <iframe src={pdfUrl} className="w-full h-full border-none" title="PDF Preview" />
-                            </>
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-muted/5">
-                                <div
-                                    className="w-20 h-20 rounded-2xl bg-muted flex items-center justify-center mb-6 cursor-pointer hover:bg-muted/80 transition-colors"
-                                    onClick={() => document.getElementById('pdf-upload')?.click()}
-                                >
-                                    <Upload className="w-8 h-8 text-muted-foreground" />
-                                </div>
-                                <h3 className="text-lg font-medium mb-2">Sube la Hoja de Datos</h3>
-                                <p className="text-sm text-muted-foreground max-w-xs mb-6">
-                                    Carga el PDF para extraer automáticamente los parámetros de la bomba.
-                                </p>
-                                <Button variant="outline" onClick={() => document.getElementById('pdf-upload')?.click()}>
-                                    Seleccionar Archivo
-                                </Button>
                             </div>
                         )}
                         <input type="file" id="pdf-upload" className="hidden" accept=".pdf" onChange={handleFileUpload} />
@@ -242,7 +309,7 @@ export default function TestDetailPage() {
                     {/* Right Panel - Clean Data View */}
                     <ResizablePanel defaultSize={55} minSize={30} className="bg-background/50 backdrop-blur-sm">
                         <ScrollArea className="h-full">
-                            <div className="p-6 md:p-8 space-y-10">
+                            <div className="p-6 md:p-8 space-y-8">
 
                                 {/* Section 1: Info (Read Only) */}
                                 <section className="space-y-4">
@@ -290,16 +357,16 @@ export default function TestDetailPage() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="h-7 text-xs"
+                                            className="h-7 text-[10px] px-2"
                                             onClick={handleAnalyze}
                                             disabled={!pdfFile || extracting}
                                         >
-                                            {extracting ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <Search className="w-3 h-3 mr-2" />}
+                                            {extracting ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Search className="w-3 h-3 mr-1.5" />}
                                             {extracting ? "Analizando..." : "Auto-Extraer"}
                                         </Button>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-6 gap-y-4">
                                         <CleanInput
                                             label="Caudal"
                                             value={test.pdfData?.flowRate}
@@ -339,8 +406,8 @@ export default function TestDetailPage() {
                                     </div>
 
                                     <div className="space-y-4 pt-2">
-                                        <h4 className="text-xs font-medium text-muted-foreground">Construcción y Fluido</h4>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Construcción y Fluido</h4>
+                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-6 gap-y-4">
                                             <CleanInput
                                                 label="D. Impulsor"
                                                 value={test.pdfData?.impellerDiameter}
@@ -365,8 +432,6 @@ export default function TestDetailPage() {
                                                 unit="°C"
                                                 onChange={(val) => handlePdfDataChange("temperature", val)}
                                             />
-                                        </div>
-                                        <div className="pt-2">
                                             <CleanInput
                                                 label="Tipo de Sello"
                                                 value={test.pdfData?.sealType}

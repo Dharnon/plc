@@ -12,6 +12,7 @@ import winston from 'winston';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import { logger } from './utils/logger';
+import { prisma } from './lib/db';
 
 // Load environment variables
 dotenv.config();
@@ -124,20 +125,147 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // --- Tests Module ---
-import { memoryStore } from './storage/memory.store';
 
-app.get('/api/tests', (req, res) => {
-    const tests = memoryStore.getTests();
-    res.json(tests);
+
+/**
+ * @swagger
+ * /api/tests:
+ *   get:
+ *     tags: [Tests]
+ *     summary: Get all tests (Pending & Completed)
+ *     description: Retrieves a combined list of pending tests (from ListadosProduccion) and completed tests (from Prueba)
+ *     responses:
+ *       200:
+ *         description: List of tests
+ */
+app.get('/api/tests', async (req, res) => {
+    try {
+        // 1. Pending Tests (ListadosProduccion)
+        const pendingRaw = await prisma.listadosProduccion.findMany();
+        const pendingTests = pendingRaw.map((p: any) => ({
+            id: `pending-${p.id}`,
+            status: 'PENDING',
+            generalInfo: {
+                pedido: p.Pedido,
+                cliente: p.Cliente,
+                modeloBomba: p.TipoDeBomba,
+                ordenTrabajo: p.OrdenDeTrabajo,
+                numeroBombas: p.NumeroBombas
+            },
+            createdAt: new Date().toISOString()
+        }));
+
+        // 2. Completed Tests (Prueba)
+        const completedRaw = await prisma.prueba.findMany({
+            include: {
+                cliente: true,
+                bomba: true
+            },
+            orderBy: {
+                fecha: 'desc'
+            }
+        });
+
+        const completedTests = completedRaw.map((p: any) => ({
+            id: p.numeroprotocolo.toString(),
+            status: 'COMPLETED',
+            generalInfo: {
+                pedido: p.bomba?.item || '',
+                cliente: p.cliente?.nombre || '',
+                modeloBomba: p.bomba?.tipobomba || '',
+                ordenTrabajo: p.bomba?.OrdenDeTrabajo || '',
+                numeroBombas: 1
+            },
+            createdAt: p.fecha.toISOString()
+        }));
+
+        res.json([...pendingTests, ...completedTests]);
+    } catch (error) {
+        logger.error('Error fetching tests:', error);
+        res.status(500).json({ error: 'Failed to fetch tests' });
+    }
 });
 
-// Get single test by ID
-app.get('/api/tests/:id', (req, res) => {
-    const test = memoryStore.getTests().find(t => t.id === req.params.id);
-    if (test) {
-        res.json(test);
-    } else {
-        res.status(404).json({ error: 'Test not found' });
+/**
+ * @swagger
+ * /api/tests/{id}:
+ *   get:
+ *     tags: [Tests]
+ *     summary: Get test by ID
+ *     description: Retrieves details of a specific test. Standard ID for completed tests, 'pending-ID' for pending.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Test ID
+ *     responses:
+ *       200:
+ *         description: Test details
+ *       404:
+ *         description: Test not found
+ */
+app.get('/api/tests/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (id.toString().startsWith('pending-')) {
+            const dbId = parseInt(id.replace('pending-', ''));
+            const p = await prisma.listadosProduccion.findUnique({ where: { id: dbId } });
+
+            if (p) {
+                res.json({
+                    id: `pending-${p.id}`,
+                    status: 'PENDING',
+                    generalInfo: {
+                        pedido: p.Pedido,
+                        cliente: p.Cliente,
+                        modeloBomba: p.TipoDeBomba,
+                        ordenTrabajo: p.OrdenDeTrabajo,
+                        numeroBombas: p.NumeroBombas
+                    },
+                    createdAt: new Date().toISOString()
+                });
+            } else {
+                res.status(404).json({ error: 'Pending test not found' });
+            }
+        } else {
+            const dbId = parseInt(id);
+            const p = await prisma.prueba.findUnique({
+                where: { numeroprotocolo: dbId },
+                include: {
+                    cliente: true,
+                    bomba: true,
+                    motor: true,
+                    fluido: true,
+                    detalles: true,
+                    pruebaparametrovalor: true,
+                    pruebaparametrocontinuo: true
+                }
+            });
+
+            if (p) {
+                res.json({
+                    id: p.numeroprotocolo.toString(),
+                    status: 'COMPLETED',
+                    generalInfo: {
+                        pedido: p.bomba?.item || '',
+                        cliente: p.cliente?.nombre || '',
+                        modeloBomba: p.bomba?.tipobomba || '',
+                        ordenTrabajo: p.bomba?.OrdenDeTrabajo || '',
+                        numeroBombas: 1
+                    },
+                    details: p, // Send full details for completed tests
+                    createdAt: p.fecha.toISOString()
+                });
+            } else {
+                res.status(404).json({ error: 'Test not found' });
+            }
+        }
+    } catch (error) {
+        logger.error('Error fetching test:', error);
+        res.status(500).json({ error: 'Failed to fetch test' });
     }
 });
 
@@ -173,6 +301,26 @@ app.post('/api/excel/sheets', upload.single('file'), async (req: any, res: any) 
     }
 });
 
+/**
+ * @swagger
+ * /api/import-excel:
+ *   post:
+ *     tags: [Import]
+ *     summary: Import tests from Excel
+ *     description: Upload an Excel file to import test orders into ListadosProduccion
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Import successful
+ */
 app.post('/api/import-excel', upload.single('file'), async (req: any, res: any) => {
     try {
         if (!req.file) {
@@ -223,10 +371,18 @@ app.post('/api/import-excel', upload.single('file'), async (req: any, res: any) 
             });
         }
 
-        memoryStore.clearPendingTests();
-        for (const test of newTests) {
-            memoryStore.addTest(test);
-        }
+        // Save to database (ListadosProduccion)
+        await prisma.listadosProduccion.deleteMany(); // Clear existing pending tests
+
+        await prisma.listadosProduccion.createMany({
+            data: newTests.map((t: any) => ({
+                Pedido: t.generalInfo.pedido,
+                Cliente: t.generalInfo.cliente,
+                TipoDeBomba: t.generalInfo.modeloBomba,
+                OrdenDeTrabajo: t.generalInfo.ordenTrabajo,
+                NumeroBombas: t.generalInfo.numeroBombas
+            }))
+        });
 
         logger.info(`Imported ${newTests.length} records from Excel`);
         res.json({ success: true, count: newTests.length });
@@ -237,6 +393,26 @@ app.post('/api/import-excel', upload.single('file'), async (req: any, res: any) 
     }
 });
 
+/**
+ * @swagger
+ * /api/import-csv:
+ *   post:
+ *     tags: [Import]
+ *     summary: Import tests from CSV
+ *     description: Upload a CSV file to import test orders into ListadosProduccion
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Import successful
+ */
 app.post('/api/import-csv', upload.single('file'), async (req: any, res: any) => {
     try {
         if (!req.file) {
@@ -257,9 +433,27 @@ app.post('/api/import-csv', upload.single('file'), async (req: any, res: any) =>
             };
         });
 
-        memoryStore.setListadosProduccion(records);
+        interface CsvRecord {
+            pedido: string;
+            cliente: string;
+            tipoDeBomba: string;
+            ordenDeTrabajo: string;
+            numeroBombas: number;
+        }
 
-        logger.info(`Imported ${records.length} records from CSV`);
+        // Save to database
+        await prisma.listadosProduccion.deleteMany(); // Clear existing
+        await prisma.listadosProduccion.createMany({
+            data: records.map((r: CsvRecord) => ({
+                Pedido: r.pedido,
+                Cliente: r.cliente,
+                TipoDeBomba: r.tipoDeBomba,
+                OrdenDeTrabajo: r.ordenDeTrabajo,
+                NumeroBombas: r.numeroBombas
+            }))
+        });
+
+        logger.info(`Imported ${records.length} records from CSV to database`);
         res.json({ success: true, count: records.length });
 
     } catch (error) {
@@ -268,17 +462,71 @@ app.post('/api/import-csv', upload.single('file'), async (req: any, res: any) =>
     }
 });
 
-app.get('/api/listados', (req, res) => {
-    const listados = memoryStore.getListadosProduccion();
-    res.json(listados);
+/**
+ * @swagger
+ * /api/listados:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Get Listados Produccion
+ *     description: Retrieves all raw records from ListadosProduccion table
+ *     responses:
+ *       200:
+ *         description: List of production records
+ */
+app.get('/api/listados', async (req, res) => {
+    try {
+        const listados = await prisma.listadosProduccion.findMany();
+        res.json(listados);
+    } catch (error) {
+        logger.error('Error fetching listados:', error);
+        res.status(500).json({ error: 'Failed to fetch listados' });
+    }
 });
 
-app.get('/api/reports/:id', (req, res) => {
-    const report = memoryStore.getReport(req.params.id);
-    if (report) {
-        res.json(report);
-    } else {
-        res.status(404).json({ error: 'Report not found' });
+/**
+ * @swagger
+ * /api/reports/{id}:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Get Test Report
+ *     description: Retrieves full details of a completed test for report generation
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Test Protocol Number (numeric)
+ *     responses:
+ *       200:
+ *         description: Report details
+ *       404:
+ *         description: Report not found
+ */
+app.get('/api/reports/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const report = await prisma.prueba.findUnique({
+            where: { numeroprotocolo: id },
+            include: {
+                cliente: true,
+                bomba: true,
+                motor: true,
+                fluido: true,
+                detalles: true,
+                pruebaparametrovalor: true,
+                pruebaparametrocontinuo: true
+            }
+        });
+
+        if (report) {
+            res.json(report);
+        } else {
+            res.status(404).json({ error: 'Report not found' });
+        }
+    } catch (error) {
+        logger.error('Error fetching report:', error);
+        res.status(500).json({ error: 'Failed to fetch report' });
     }
 });
 

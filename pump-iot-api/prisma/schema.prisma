@@ -1,0 +1,198 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ListadosProduccion {
+  id             Int     @id @default(autoincrement())
+  Pedido         String? @db.VarChar(50)
+  Cliente        String? @db.VarChar(50)
+  TipoDeBomba    String? @db.VarChar(50)
+  OrdenDeTrabajo String? @db.VarChar(50)
+  NumeroBombas   Int?
+}
+
+model banco {
+  id     Int      @id @default(autoincrement())
+  nombre String   @db.VarChar(100)
+  estado Boolean  @default(true)
+  prueba prueba[]
+}
+
+model bomba {
+  numeroprotocolo    Int     @id
+  item               String? @db.VarChar(50)
+  tipobomba          String? @db.VarChar(50)
+  OrdenDeTrabajo     String? @db.VarChar(50)
+  diametroaspiracion Float?  @db.Real
+  diametroimpulsion  Float?  @db.Real
+  diametrorodete     String? @db.VarChar(50)
+  tipocierre         String? @db.VarChar(50)
+  prueba             prueba  @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([numeroprotocolo], map: "bomba_fkindex1_bomba")
+  @@index([numeroprotocolo], map: "ifk_realizada_con_bomba")
+}
+
+model cliente {
+  numeroprotocolo Int     @id
+  nombre          String  @db.VarChar(200)
+  direccion       String? @db.VarChar(500)
+  contacto        String? @db.VarChar(100)
+  telefono        String? @db.VarChar(20)
+  email           String? @db.VarChar(100)
+  prueba          prueba  @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([numeroprotocolo], map: "cliente_fkindex1_cliente")
+  @@index([numeroprotocolo], map: "ifk_realizado_para_cliente")
+}
+
+model detalles {
+  numeroprotocolo             Int      @id
+  esbombavertical             Boolean? @default(false)
+  comentario                  String?  @db.VarChar(400)
+  correccionmanometrica       Float?   @db.Real
+  presionatmosferica          Float?   @db.Real
+  temperaturaagua             Float?   @db.Real
+  temperaturaambiente         Float?   @db.Real
+  temperaturaladoacoplamiento Float?   @db.Real
+  temperaturaladobomba        Float?   @db.Real
+  tiempofuncionamientobomba   Float?   @db.Real
+  prueba                      prueba   @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([numeroprotocolo], map: "detalles_fkindex1_detalles")
+  @@index([numeroprotocolo], map: "ifk_definida_con_detalles")
+}
+
+model fluido {
+  numeroprotocolo        Int     @id
+  nombre                 String? @db.VarChar(100)
+  temperatura            Float?  @db.Real
+  viscosidad             Float?  @db.Real
+  densidad               Float?  @db.Real
+  caudal                 Float?  @db.Real
+  altura                 Float?  @db.Real
+  velocidad              Float?  @db.Real
+  potencia               Float?  @db.Real
+  rendimiento            Float?  @db.Real
+  caudalcoeficiente      Float?  @db.Real
+  alturacoeficiente      Float?  @db.Real
+  rendimientocoeficiente Float?  @db.Real
+  prueba                 prueba  @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([numeroprotocolo], map: "fluido_fkindex1_fluido")
+  @@index([numeroprotocolo], map: "ifk_realizada_con_fluido")
+}
+
+model fluidoh2o {
+  numeroprotocolo Int    @id
+  caudal          Float? @db.Real
+  altura          Float? @db.Real
+  velocidad       Float? @db.Real
+  potencia        Float? @db.Real
+  rendimiento     Float? @db.Real
+  npshrequerido   Float? @db.Real
+  prueba          prueba @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([numeroprotocolo], map: "fluidoh2o_fkindex1_fluidoh2o")
+  @@index([numeroprotocolo], map: "ifk_realizada_con_fluidoh2o")
+}
+
+model motor {
+  numeroprotocolo Int     @id
+  marca           String? @db.VarChar(50)
+  tipo            String? @db.VarChar(50)
+  potencia        Float?  @db.Real
+  velocidad       Float?  @db.Real
+  intensidad      Float?  @db.Real
+  rendimiento25   Float?  @db.Real
+  rendimiento50   Float?  @db.Real
+  rendimiento75   Float?  @db.Real
+  rendimiento100  Float?  @db.Real
+  rendimiento125  Float?  @db.Real
+  prueba          prueba  @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([numeroprotocolo], map: "ifk_realizada_con_motor")
+  @@index([numeroprotocolo], map: "motor_fkindex1_motor")
+}
+
+model parametro {
+  id                      Int                       @id @default(autoincrement())
+  unidadid                Int
+  nombre                  String?                   @db.VarChar(100)
+  tipodato                String?                   @db.VarChar(100)
+  obligatorio             Boolean?                  @default(false)
+  activo                  Boolean?                  @default(true)
+  unidad                  unidad                    @relation(fields: [unidadid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pruebaparametrocontinuo pruebaparametrocontinuo[]
+  pruebaparametrovalor    pruebaparametrovalor[]
+
+  @@index([unidadid], map: "ifk_se_mide_en_parametro")
+  @@index([unidadid], map: "parametro_fkindex1_parametro")
+}
+
+model prueba {
+  numeroprotocolo         Int                       @id @default(autoincrement())
+  bancoid                 Int
+  fecha                   DateTime                  @default(now()) @db.Timestamp(6)
+  bomba                   bomba?
+  cliente                 cliente?
+  detalles                detalles?
+  fluido                  fluido?
+  fluidoh2o               fluidoh2o?
+  motor                   motor?
+  banco                   banco                     @relation(fields: [bancoid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pruebaparametrocontinuo pruebaparametrocontinuo[]
+  pruebaparametrovalor    pruebaparametrovalor[]
+
+  @@index([bancoid], map: "ifk_realizada_con_prueba")
+  @@index([bancoid], map: "prueba_fkindex1_prueba")
+}
+
+model pruebaparametrocontinuo {
+  fechahora       DateTime  @db.Timestamp(6)
+  parametroid     Int
+  numeroprotocolo Int
+  valorentero     Int?
+  valordecimal    Float?    @db.Real
+  valortexto      String?   @db.VarChar(100)
+  valorfecha      DateTime? @db.Timestamp(6)
+  valorbool       Boolean?
+  prueba          prueba    @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
+  parametro       parametro @relation(fields: [parametroid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([fechahora, parametroid, numeroprotocolo])
+  @@index([numeroprotocolo], map: "ifk_corresponde_a_pruebaparametrocontinuo")
+  @@index([parametroid], map: "ifk_punto_en_pruebaparametrocontinuo")
+  @@index([parametroid], map: "pruebaparametrotemporal_fkindex1_pruebaparametrocontinuo")
+  @@index([numeroprotocolo], map: "pruebaparametrotemporal_fkindex2_pruebaparametrocontinuo")
+}
+
+model pruebaparametrovalor {
+  puntoid         Int
+  parametroid     Int
+  numeroprotocolo Int
+  valorentero     Int?
+  valordecimal    Float?    @db.Real
+  valortexto      String?   @db.VarChar(100)
+  valorfecha      DateTime? @db.Timestamp(6)
+  valorbool       Boolean?
+  prueba          prueba    @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
+  parametro       parametro @relation(fields: [parametroid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([puntoid, parametroid, numeroprotocolo])
+  @@index([numeroprotocolo], map: "ifk_punto_con_pruebaparametrovalor")
+  @@index([parametroid], map: "ifk_punto_en_pruebaparametrovalor")
+  @@index([parametroid], map: "prueba_has_parametro_fkindex2_pruebaparametrovalor")
+  @@index([numeroprotocolo], map: "pruebaparametrovalor_fkindex2_pruebaparametrovalor")
+}
+
+model unidad {
+  id        Int         @id @default(autoincrement())
+  nombre    String?     @db.VarChar(100)
+  parametro parametro[]
+}

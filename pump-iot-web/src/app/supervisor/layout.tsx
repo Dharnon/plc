@@ -2,8 +2,10 @@
 
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from "@/components/ui/sidebar";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, FileSpreadsheet, FileText, LogOut } from "lucide-react";
+import { LayoutDashboard, FileSpreadsheet, FileText, LogOut, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -49,25 +51,14 @@ export default function SupervisorLayout({
             <div className="h-screen flex w-full overflow-hidden">
                 <Sidebar className="border-r shrink-0">
                     <SidebarHeader className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                                <svg
-                                    className="w-4 h-4 text-primary-foreground"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                                    />
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 className="font-semibold text-sm">Pump IoT</h2>
-                                <p className="text-xs text-muted-foreground">Flowserve</p>
+                        <div className="flex items-center justify-center">
+                            <div className="relative w-full flex justify-center">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src="/flowserve-logo.png"
+                                    alt="Flowserve Logo"
+                                    className="w-50 h-18 object-cover object-center"
+                                />
                             </div>
                         </div>
                     </SidebarHeader>
@@ -81,10 +72,10 @@ export default function SupervisorLayout({
                                         isActive={pathname === item.href}
                                         className="w-full justify-start"
                                     >
-                                        <a href={item.href} className="flex items-center gap-3">
+                                        <Link href={item.href} className="flex items-center gap-3">
                                             <item.icon className="w-4 h-4" />
                                             <span>{item.title}</span>
-                                        </a>
+                                        </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}
@@ -92,6 +83,27 @@ export default function SupervisorLayout({
                     </SidebarContent>
 
                     <SidebarFooter className="p-4">
+                        {/* Powered by HEXA Ingenieros */}
+                        <div className="flex flex-row items-end gap-2 opacity-60 hover:opacity-100 transition-opacity select-none group mb-4 w-full pl-1">
+                            <span
+                                className="text-[16px] text-muted-foreground font-normal mb-1.5"
+                                style={{ fontFamily: 'var(--font-dancing-script), cursive' }}
+                            >
+                                Powered by
+                            </span>
+                            <div className="flex flex-col items-start leading-none">
+                                <span
+                                    className="text-3xl font-bold tracking-widest text-foreground"
+                                    style={{ fontFamily: 'var(--font-orbitron), sans-serif' }}
+                                >
+                                    HEXA
+                                </span>
+                                <span className="text-[9px] text-primary font-semibold uppercase tracking-[0.2em] -mt-1 ml-0.5 group-hover:text-primary/80 transition-colors">
+                                    Ingenieros
+                                </span>
+                            </div>
+                        </div>
+
                         <Separator className="mb-4" />
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-xs text-muted-foreground">Tema</span>

@@ -124,15 +124,15 @@ export default function DashboardPage() {
         }),
         columnHelper.accessor("generalInfo.modeloBomba", {
             header: "Modelo",
-            cell: (info) => <span className="font-mono text-sm text-muted-foreground truncate max-w-[150px] hidden lg:block">{info.getValue() || "-"}</span>,
+            cell: (info) => <span className="font-mono text-[11px] sm:text-sm text-muted-foreground truncate max-w-[80px] sm:max-w-none block lg:max-w-[150px]">{info.getValue() || "-"}</span>,
         }),
         columnHelper.accessor("generalInfo.ordenTrabajo", {
             header: "Orden",
-            cell: (info) => <span className="font-mono text-sm text-muted-foreground hidden xl:block">{info.getValue() || "-"}</span>,
+            cell: (info) => <span className="font-mono text-[11px] sm:text-sm text-muted-foreground hidden lg:block xl:block">{info.getValue() || "-"}</span>,
         }),
         columnHelper.accessor("generalInfo.numeroBombas", {
             header: ({ column }) => <SortableHeader column={column}>Nº</SortableHeader>,
-            cell: (info) => <span className="font-mono text-center hidden sm:block">{info.getValue()}</span>,
+            cell: (info) => <span className="font-mono text-[11px] sm:text-sm text-center block sm:hidden md:block lg:block">{info.getValue()}</span>,
             enableSorting: true,
         }),
         columnHelper.display({
@@ -209,68 +209,69 @@ export default function DashboardPage() {
                     {lastImport && (
                         <div className="text-right text-xs sm:text-sm hidden sm:block">
                             <p className="text-muted-foreground">Último archivo:</p>
-                            <p className="font-medium text-primary truncate max-w-[150px] sm:max-w-[200px]">{lastImport.filename}</p>
+                            <p className="font-medium text-primary">{lastImport.filename}</p>
                         </div>
                     )}
                     <ImportModal onImportSuccess={handleImportSuccess} />
                 </div>
             </div>
 
-            {/* Stats Cards - Responsive Grid */}
+            {/* Stats Cards - Balanced Compact (Vertical but cleaner) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 shrink-0">
-                <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setStatusFilter("all")}>
-                    <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-                        <CardDescription className="text-xs sm:text-sm">Total</CardDescription>
-                        <CardTitle className="text-xl sm:text-3xl">{tests.length}</CardTitle>
-                    </CardHeader>
+                <Card className="cursor-pointer hover:border-primary/50 transition-colors sm:bg-card" onClick={() => setStatusFilter("all")}>
+                    <div className="p-4 flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-tight">Total</span>
+                        <span className="text-2xl font-bold text-slate-900">{tests.length}</span>
+                    </div>
                 </Card>
-                <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setStatusFilter("PENDING")}>
-                    <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-                        <CardDescription className="text-xs sm:text-sm">Pendientes</CardDescription>
-                        <CardTitle className="text-xl sm:text-3xl text-yellow-600">
+                <Card className="cursor-pointer hover:border-primary/50 transition-colors sm:bg-card" onClick={() => setStatusFilter("PENDING")}>
+                    <div className="p-4 flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-tight">Pendientes</span>
+                        <span className="text-2xl font-bold text-yellow-600">
                             {tests.filter(t => t.status === "PENDING").length}
-                        </CardTitle>
-                    </CardHeader>
+                        </span>
+                    </div>
                 </Card>
-                <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setStatusFilter("IN_PROGRESS")}>
-                    <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-                        <CardDescription className="text-xs sm:text-sm">En Proceso</CardDescription>
-                        <CardTitle className="text-xl sm:text-3xl text-blue-600">
+                <Card className="cursor-pointer hover:border-primary/50 transition-colors sm:bg-card" onClick={() => setStatusFilter("IN_PROGRESS")}>
+                    <div className="p-4 flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-tight">En Proceso</span>
+                        <span className="text-2xl font-bold text-blue-600">
                             {tests.filter(t => t.status === "IN_PROGRESS").length}
-                        </CardTitle>
-                    </CardHeader>
+                        </span>
+                    </div>
                 </Card>
-                <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setStatusFilter("GENERATED")}>
-                    <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-                        <CardDescription className="text-xs sm:text-sm">Generados</CardDescription>
-                        <CardTitle className="text-xl sm:text-3xl text-green-600">
+                <Card className="cursor-pointer hover:border-primary/50 transition-colors sm:bg-card" onClick={() => setStatusFilter("GENERATED")}>
+                    <div className="p-4 flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-tight">Generados</span>
+                        <span className="text-2xl font-bold text-green-600">
                             {tests.filter(t => t.status === "GENERATED").length}
-                        </CardTitle>
-                    </CardHeader>
+                        </span>
+                    </div>
                 </Card>
             </div>
 
-            {/* Data Table - Flex Grow to Fill Space */}
-            <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0 pb-3 sm:pb-4 shrink-0">
+            {/* Data Table Section - cleaner integrated look */}
+            <div className="flex-1 flex flex-col min-h-0 space-y-4">
+                {/* Section Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
                     <div>
-                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                            <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <h2 className="text-lg font-semibold flex items-center gap-2">
+                            <FileSpreadsheet className="w-5 h-5 text-primary" />
                             Pruebas
-                        </CardTitle>
-                        <CardDescription className="text-xs sm:text-sm">
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
                             {table.getFilteredRowModel().rows.length} de {tests.length} registros
-                        </CardDescription>
+                        </p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                         {/* Status Filter */}
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-32 sm:w-40 text-xs sm:text-sm">
-                                <Filter className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                            <SelectTrigger className="w-32 sm:w-40 text-xs sm:text-sm h-9">
+                                <Filter className="w-3.5 h-3.5 mr-2 opacity-70" />
                                 <SelectValue placeholder="Estado" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="all">Todos los estados</SelectItem>
                                 <SelectItem value="PENDING">Pendientes</SelectItem>
                                 <SelectItem value="IN_PROGRESS">En Proceso</SelectItem>
                                 <SelectItem value="GENERATED">Generados</SelectItem>
@@ -279,35 +280,37 @@ export default function DashboardPage() {
 
                         {/* Search */}
                         <div className="relative flex-1 sm:flex-none">
-                            <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-70" />
                             <Input
-                                placeholder="Buscar..."
+                                placeholder="Buscar en la tabla..."
                                 value={globalFilter}
                                 onChange={(e) => setGlobalFilter(e.target.value)}
-                                className="pl-7 sm:pl-9 w-full sm:w-48 lg:w-64 text-xs sm:text-sm"
+                                className="pl-9 w-full sm:w-48 lg:w-64 text-xs sm:text-sm h-9"
                             />
                         </div>
 
-                        <Button variant="outline" size="icon" onClick={fetchTests} disabled={loading} className="h-8 w-8 sm:h-9 sm:w-9">
-                            <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${loading ? "animate-spin" : ""}`} />
+                        <Button variant="outline" size="icon" onClick={fetchTests} disabled={loading} className="h-9 w-9">
+                            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
                         </Button>
                     </div>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col min-h-0 pb-4 overflow-hidden">
+                </div>
+
+                {/* Table Container - simple border, clean design */}
+                <div className="flex-1 flex flex-col min-h-0">
                     {loading ? (
                         <div className="flex-1 flex items-center justify-center">
                             <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
                         </div>
-                    ) : table.getRowModel().rows.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center">
-                            <Empty className="border border-dashed rounded-lg">
+                    ) : tests.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center p-8">
+                            <Empty className="max-w-md">
                                 <EmptyHeader>
-                                    <EmptyMedia variant="icon">
-                                        <FileSpreadsheet />
+                                    <EmptyMedia variant="icon" className="bg-primary/5 text-primary">
+                                        <Upload className="w-8 h-8" />
                                     </EmptyMedia>
-                                    <EmptyTitle>Sin pruebas registradas</EmptyTitle>
+                                    <EmptyTitle>No hay pruebas registradas</EmptyTitle>
                                     <EmptyDescription>
-                                        Importa un archivo Excel para comenzar a gestionar las pruebas de bombas.
+                                        Importa tu primer archivo CSV o Excel para comenzar.
                                     </EmptyDescription>
                                 </EmptyHeader>
                                 <EmptyContent>
@@ -316,17 +319,17 @@ export default function DashboardPage() {
                             </Empty>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                            {/* Scrollable Table Container with native scroll for sticky support */}
-                            <div className="flex-1 rounded-md border overflow-auto scrollbar-hover-only">
+                        <>
+                            {/* Scrollable Table */}
+                            <div className="flex-1 overflow-auto border rounded-lg scrollbar-hover-only">
                                 <Table>
-                                    <TableHeader className="sticky top-0 z-20">
+                                    <TableHeader className="sticky top-0 z-10 bg-muted/50">
                                         {table.getHeaderGroups().map((headerGroup) => (
-                                            <TableRow key={headerGroup.id} className="hover:bg-transparent border-b">
+                                            <TableRow key={headerGroup.id} className="hover:bg-transparent">
                                                 {headerGroup.headers.map((header) => (
                                                     <TableHead
                                                         key={header.id}
-                                                        className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4 bg-background"
+                                                        className="whitespace-nowrap text-xs px-4 h-10 bg-muted/50 font-medium"
                                                     >
                                                         {header.isPlaceholder
                                                             ? null
@@ -344,7 +347,7 @@ export default function DashboardPage() {
                                                 onClick={() => router.push(`/supervisor/test/${row.original.id}`)}
                                             >
                                                 {row.getVisibleCells().map((cell) => (
-                                                    <TableCell key={cell.id} className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                                                    <TableCell key={cell.id} className="px-4 py-3 text-sm">
                                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                                     </TableCell>
                                                 ))}
@@ -354,73 +357,76 @@ export default function DashboardPage() {
                                 </Table>
                             </div>
 
-                            {/* Pagination Controls - Responsive */}
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 sm:pt-4 border-t mt-3 sm:mt-4 shrink-0">
-                                <div className="text-xs sm:text-sm text-muted-foreground">
-                                    Pág. {table.getState().pagination.pageIndex + 1} de {table.getPageCount()}
-                                    <span className="ml-2">({filteredData.length} reg.)</span>
+                            {/* Pagination - Compact Single Row */}
+                            <div className="flex flex-col sm:flex-row items-center justify-between py-4 sm:py-6 gap-4 shrink-0 border-t mt-4">
+                                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest hidden lg:inline">Por página:</span>
+                                        <Select
+                                            value={String(table.getState().pagination.pageSize)}
+                                            onValueChange={(value) => table.setPageSize(Number(value))}
+                                        >
+                                            <SelectTrigger className="w-[72px] h-7 text-[11px] border-slate-200">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="10">10</SelectItem>
+                                                <SelectItem value="20">20</SelectItem>
+                                                <SelectItem value="50">50</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7 border-slate-200 shrink-0"
+                                            onClick={() => table.setPageIndex(0)}
+                                            disabled={!table.getCanPreviousPage()}
+                                        >
+                                            <ChevronsLeft className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7 border-slate-200 shrink-0"
+                                            onClick={() => table.previousPage()}
+                                            disabled={!table.getCanPreviousPage()}
+                                        >
+                                            <ChevronLeft className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <div className="flex items-center justify-center px-2 min-w-[3rem] h-7 bg-muted/50 rounded text-[11px] font-bold">
+                                            {table.getState().pagination.pageIndex + 1}
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7 border-slate-200 text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
+                                            onClick={() => table.nextPage()}
+                                            disabled={!table.getCanNextPage()}
+                                        >
+                                            <ChevronRight className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7 border-slate-200 shrink-0"
+                                            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                                            disabled={!table.getCanNextPage()}
+                                        >
+                                            <ChevronsRight className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                    <Select
-                                        value={String(table.getState().pagination.pageSize)}
-                                        onValueChange={(value) => table.setPageSize(Number(value))}
-                                    >
-                                        <SelectTrigger className="w-16 sm:w-20 text-xs sm:text-sm h-8">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="5">5</SelectItem>
-                                            <SelectItem value="10">10</SelectItem>
-                                            <SelectItem value="20">20</SelectItem>
-                                            <SelectItem value="50">50</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => table.setPageIndex(0)}
-                                        disabled={!table.getCanPreviousPage()}
-                                    >
-                                        <ChevronsLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => table.previousPage()}
-                                        disabled={!table.getCanPreviousPage()}
-                                    >
-                                        <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    </Button>
-                                    <span className="px-2 sm:px-3 py-1 bg-muted rounded text-xs sm:text-sm font-mono">
-                                        {table.getState().pagination.pageIndex + 1}
-                                    </span>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => table.nextPage()}
-                                        disabled={!table.getCanNextPage()}
-                                    >
-                                        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                                        disabled={!table.getCanNextPage()}
-                                    >
-                                        <ChevronsRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    </Button>
+                                <div className="text-[11px] text-muted-foreground font-medium text-center sm:text-right w-full sm:w-auto">
+                                    Pág. <span className="text-foreground">{table.getState().pagination.pageIndex + 1}</span> de <span className="text-foreground">{table.getPageCount()}</span>
+                                    <span className="ml-2 opacity-50">({filteredData.length} registros totales)</span>
                                 </div>
                             </div>
-                        </div>
+                        </>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }
