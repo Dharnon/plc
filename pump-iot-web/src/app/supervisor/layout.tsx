@@ -46,8 +46,8 @@ export default function SupervisorLayout({
 
     return (
         <SidebarProvider>
-            <div className="min-h-screen flex w-full">
-                <Sidebar className="border-r">
+            <div className="h-screen flex w-full overflow-hidden">
+                <Sidebar className="border-r shrink-0">
                     <SidebarHeader className="p-4">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -118,10 +118,8 @@ export default function SupervisorLayout({
                     </SidebarFooter>
                 </Sidebar>
 
-                <main className="flex-1 overflow-auto bg-background">
-                    <div className="p-6">
-                        {children}
-                    </div>
+                <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-background">
+                    {children}
                 </main>
             </div>
         </SidebarProvider>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
     ChevronLeft, ChevronsLeft, ChevronsRight,
     Filter, ArrowUpDown, ArrowUp, ArrowDown, Upload
 } from "lucide-react";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import {
     useReactTable,
@@ -34,7 +36,7 @@ import {
 
 interface TestItem {
     id: string;
-    status: "PENDING" | "IN_PROGRESS" | "GENERATED";
+    status: string;
     generalInfo: {
         pedido: string;
         posicion?: string;
@@ -48,11 +50,15 @@ interface TestItem {
 const columnHelper = createColumnHelper<TestItem>();
 
 // Status badge config
-const statusConfig = {
+const statusConfig: Record<string, { label: string; className: string }> = {
     PENDING: { label: "Pendiente", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" },
     IN_PROGRESS: { label: "En Proceso", className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
     GENERATED: { label: "Generado", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+    COMPLETED: { label: "Completado", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
 };
+
+// Fallback for unknown statuses
+const getStatusConfig = (status: string) => statusConfig[status] || { label: status, className: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200" };
 
 // Sortable header component
 function SortableHeader({ column, children }: { column: Column<TestItem, unknown>; children: React.ReactNode }) {
@@ -85,17 +91,21 @@ export default function DashboardPage() {
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [sorting, setSorting] = useState<SortingState>([]);
     const [lastImport, setLastImport] = useState<{ filename: string; count: number; time: Date } | null>(null);
+    const router = useRouter();
 
     // Table columns with sortable headers
     const columns = useMemo(() => [
         columnHelper.accessor("status", {
             header: ({ column }) => <SortableHeader column={column}>Estado</SortableHeader>,
-            cell: (info) => (
-                <Badge className={statusConfig[info.getValue()].className}>
-                    <span className="hidden sm:inline">{statusConfig[info.getValue()].label}</span>
-                    <span className="sm:hidden">{statusConfig[info.getValue()].label.charAt(0)}</span>
-                </Badge>
-            ),
+            cell: (info) => {
+                const config = getStatusConfig(info.getValue());
+                return (
+                    <Badge className={config.className}>
+                        <span className="hidden sm:inline">{config.label}</span>
+                        <span className="sm:hidden">{config.label.charAt(0)}</span>
+                    </Badge>
+                );
+            },
             enableSorting: true,
         }),
         columnHelper.accessor("generalInfo.pedido", {
@@ -153,7 +163,7 @@ export default function DashboardPage() {
         getSortedRowModel: getSortedRowModel(),
         initialState: {
             pagination: {
-                pageSize: 10,
+                pageSize: 20,
             },
         },
     });
@@ -186,7 +196,7 @@ export default function DashboardPage() {
     };
 
     return (
-        <div className="h-full flex flex-col gap-4 sm:gap-6">
+        <div className="h-full flex flex-col gap-4 sm:gap-6 p-6 overflow-hidden">
             {/* Header - Responsive */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
                 <div>
@@ -307,16 +317,16 @@ export default function DashboardPage() {
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                            {/* Scrollable Table Container */}
-                            <div className="flex-1 rounded-md border overflow-auto">
+                            {/* Scrollable Table Container with native scroll for sticky support */}
+                            <div className="flex-1 rounded-md border overflow-auto scrollbar-hover-only">
                                 <Table>
-                                    <TableHeader className="sticky top-0 bg-background z-10 border-b">
+                                    <TableHeader className="sticky top-0 z-20">
                                         {table.getHeaderGroups().map((headerGroup) => (
-                                            <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                                            <TableRow key={headerGroup.id} className="hover:bg-transparent border-b">
                                                 {headerGroup.headers.map((header) => (
                                                     <TableHead
                                                         key={header.id}
-                                                        className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4 bg-muted/50"
+                                                        className="whitespace-nowrap text-xs sm:text-sm px-2 sm:px-4 bg-background"
                                                     >
                                                         {header.isPlaceholder
                                                             ? null
@@ -331,6 +341,7 @@ export default function DashboardPage() {
                                             <TableRow
                                                 key={row.id}
                                                 className="cursor-pointer hover:bg-muted/50"
+                                                onClick={() => router.push(`/supervisor/test/${row.original.id}`)}
                                             >
                                                 {row.getVisibleCells().map((cell) => (
                                                     <TableCell key={cell.id} className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">

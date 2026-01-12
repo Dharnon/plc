@@ -131,6 +131,16 @@ app.get('/api/tests', (req, res) => {
     res.json(tests);
 });
 
+// Get single test by ID
+app.get('/api/tests/:id', (req, res) => {
+    const test = memoryStore.getTests().find(t => t.id === req.params.id);
+    if (test) {
+        res.json(test);
+    } else {
+        res.status(404).json({ error: 'Test not found' });
+    }
+});
+
 // --- Import Module ---
 import multer from 'multer';
 import * as XLSX from 'xlsx';
