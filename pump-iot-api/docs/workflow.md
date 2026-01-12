@@ -1,108 +1,171 @@
 # Documentación del Flujo de Usuario - Plataforma IoT
 
-Este documento describe el flujo operativo de la plataforma, detallando las interacciones entre los roles de Oficina (Ingeniería) y Taller (Operarios), y su correspondencia con la arquitectura del backend y la base de datos.
+Este documento describe el flujo operativo de la plataforma, detallando las interacciones entre los roles de Oficina (Ingeniería), Taller (Operarios) y la Vista 3D, junto con su correspondencia con la arquitectura del backend y la base de datos.
+
+---
 
 ## Diagrama de Flujo
 
 ```mermaid
 flowchart TD
     %% Nodos de Inicio
-    Excel[ Importar Excel/CSV] -->|Puebla la tabla| Listados(BBDD: ListadosProduccion)
+    Excel[Importar Excel/CSV] -->|Puebla la tabla| Listados[(BBDD: ListadosProduccion)]
 
     %% SUBGRAFO 1: INGENIERÍA / OFICINA
-    subgraph OFICINA ["1. FASE DE PREPARACIÓN (Ingeniero)"]
+    subgraph OFICINA ["1. FASE DE PREPARACIÓN - Ingeniero"]
         style OFICINA fill:#f9f9f9,stroke:#333,stroke-width:2px
         
-        Listados -->|Selecciona fila 'Pendiente'| VistaDetalle[ Vista Detalle Importación]
-        VistaDetalle -->|Sube Archivo| PDF[ PDF Especificaciones]
-        PDF -->|OCR / Parsing| Extraccion[ Extracción de Datos]
-        Extraccion -->|Rellena Formulario| Validacion{¿Datos Correctos?}
+        Listados -->|Selecciona fila Pendiente| VistaDetalle[Vista Detalle Importación]
+        VistaDetalle -->|Sube Archivo| PDF[PDF Especificaciones]
+        PDF -->|OCR / Parsing| Extraccion[Extracción de Datos]
+        Extraccion -->|Rellena Formulario| Validacion{Datos Correctos}
         
-        Validacion -- NO --> Correccion[ Corregir manualmente en UI]
+        Validacion -- NO --> Correccion[Corregir manualmente en UI]
         Correccion --> Validacion
         
-        Validacion -- SÍ --> BtnGenerar[Botón: 'Generar Prueba']
+        Validacion -- SI --> BtnGenerar[Boton: Generar Prueba]
     end
 
     %% TRANSICIÓN DE ESTADO
-    BtnGenerar -->|INSERT en Tbl Prueba + UPDATE Estado| DB_Generada[(BBDD: Estado 'GENERADA')]
+    BtnGenerar -->|INSERT Prueba, bancoid=NULL, estado=GENERADA| DB_Generada[(BBDD: Estado GENERADA)]
     
     %% SUBGRAFO 2: TALLER / OPERARIO
-    subgraph TALLER ["2. FASE DE EJECUCIÓN (Operario)"]
+    subgraph TALLER ["2. FASE DE EJECUCIÓN - Operario"]
         style TALLER fill:#e1f5fe,stroke:#333,stroke-width:2px
         
-        DB_Generada -->|Aparece en Lista Taller| VistaOperario[ Vista Lista 'Generadas']
-        VistaOperario -->|Selecciona Prueba| BancoPruebas[ Ejecución en Banco de Pruebas]
+        DB_Generada -->|Aparece en Lista Taller| VistaOperario[Vista Lista Generadas]
+        VistaOperario -->|Selecciona Prueba| SeleccionBanco{Seleccionar Banco}
         
-        BancoPruebas -->|Consulta| DatosTeoricos[Datos Teóricos - Solo Lectura]
-        BancoPruebas -->|Introduce| DatosFaltantes[Input: Caudal Real, Presión, etc.]
+        SeleccionBanco -->|UPDATE bancoid, estado=EN_PROCESO| DB_EnProceso[(BBDD: Estado EN_PROCESO)]
         
-        DatosFaltantes --> BtnFinalizar[Botón: 'Finalizar y Reporte']
+        DB_EnProceso -->|Carga modelo 3D del banco| Vista3D[Vista 3D del Banco]
+        Vista3D -->|Consulta| DatosTeoricos[Datos Teoricos - Solo Lectura]
+        Vista3D -->|Captura| DatosReales[Input: Caudal Real, Presion, etc.]
+        
+        DatosReales --> BtnFinalizar[Boton: Finalizar y Reporte]
     end
 
     %% FIN
-    BtnFinalizar -->|UPDATE Prueba + Generar PDF| DB_Completada[(BBDD: Estado 'COMPLETADA')]
-    DB_Completada --> Reporte[ PDF Reporte Final]
+    BtnFinalizar -->|UPDATE Prueba + Generar PDF| DB_Completada[(BBDD: Estado COMPLETADA)]
+    DB_Completada --> Reporte[PDF Reporte Final]
 
     %% Estilos
     style DB_Generada fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    style DB_EnProceso fill:#cce5ff,stroke:#004085,stroke-width:2px
     style DB_Completada fill:#d4edda,stroke:#28a745,stroke-width:2px
     style Validacion fill:#fff,stroke:#333
+    style SeleccionBanco fill:#fff,stroke:#333
 ```
 
-## Descripción Detallada del Flujo
+---
 
-### Inducción de Datos (Importación)
-El proceso inicia con la carga masiva de órdenes de trabajo.
-- **Acción:** El usuario sube un archivo Excel o CSV.
-- **Backend:** Endpoint `POST /api/import-excel` o `POST /api/import-csv`.
-- **Base de Datos:** Se eliminan los registros previos y se insertan nuevos en la tabla `ListadosProduccion`.
-- **Estado:** Estos registros representan pruebas "Potenciales" o "Pendientes de Definición".
+## Estados de una Prueba
 
-### Fase 1: Ingeniería (Oficina)
-El objetivo de esta fase es convertir un registro crudo de importación en una `Prueba` definifa lista para ejecución.
+| Estado | Descripción | bancoid | Responsable |
+|--------|-------------|---------|-------------|
+| `GENERADA` | Prueba definida, pendiente de asignar banco | NULL | Ingeniero |
+| `EN_PROCESO` | Banco asignado, ejecución en curso | Asignado | Operario |
+| `COMPLETADA` | Prueba finalizada, reporte generado | Asignado | Operario |
 
-1.  **Selección y Enriquecimiento:**
-    - El ingeniero selecciona un registro de la lista de importación.
-    - Se visualizan los datos básicos (Cliente, Pedido, Modelo).
-    - Se adjunta un PDF con las especificaciones técnicas (Curvas, puntos de diseño).
+---
 
-2.  **Extracción y Validación:**
-    - El sistema procesa el PDF (OCR/Parsing) para extraer parámetros críticos (Caudal, Altura, Potencia).
-    - El ingeniero valida estos datos en un formulario, corrigiendo cualquier error de extracción.
+## Fase 1: Ingeniería (Oficina)
 
-3.  **Generación de Prueba (Transición Crítica):**
-    - Al confirmar, se ejecuta la acción "Generar Prueba".
-    - **Backend:** Se debe crear un nuevo endpoint `POST /api/tests/create`.
-    - **Base de Datos:**
-        - Se crea un registro en la tabla `prueba`.
-        - Se crean los registros relacionados en `bomba`, `motor`, `fluido`, `detalles` y `cliente` utilizando los datos validados.
-        - Se definen los puntos de prueba teóricos en `pruebaparametrovalor` (si aplica).
-    - **Resultado:** La prueba pasa a estar disponible para el taller.
+El objetivo de esta fase es convertir un registro crudo de importación en una Prueba formal lista para ejecución.
 
-### Fase 2: Ejecución (Taller)
-El operario recibe una prueba ya definida y validada.
+### 1.1 Importación de Datos
+- El usuario sube un archivo Excel o CSV con las órdenes de trabajo.
+- **Endpoint:** `POST /api/import-excel` o `POST /api/import-csv`
+- **Base de Datos:** Se insertan registros en `ListadosProduccion`.
 
-1.  **Ejecución:**
-    - El operario selecciona una prueba con estado 'GENERADA' de la lista.
-    - El sistema muestra los datos teóricos (Solo lectura) para configurar el banco.
-    - Se capturan los datos reales (automáticamente vía PLC o entrada manual según implementación).
+### 1.2 Selección y Enriquecimiento
+- El ingeniero selecciona un registro de la lista de importación.
+- Se visualizan los datos básicos (Cliente, Pedido, Modelo).
+- Se adjunta un PDF con las especificaciones técnicas.
 
-2.  **Finalización:**
-    - Al completar la toma de datos, se finaliza la prueba.
-    - **Backend:** Endpoint `PUT /api/tests/:id/complete` (Pendiente de implementación).
-    - **Base de Datos:** Se actualiza el registro en `prueba` (marcando fecha final o estado) y se guardan los valores finales.
-    - **Reporte:** Se dispara la generación del informe PDF final certificado.
+### 1.3 Extracción y Validación
+- El sistema procesa el PDF (OCR/Parsing) para extraer parámetros:
+  - Caudal, Altura, Potencia
+  - Datos de bomba, motor, fluido
+- El ingeniero valida y corrige los datos en un formulario.
 
-## Implicaciones Técnicas y Próximos Pasos (Backend)
+### 1.4 Generación de Prueba
+Al confirmar, se ejecuta la transición crítica:
 
-Para soportar este flujo completo, se requiere extender la API actual:
+- **Endpoint:** `POST /api/tests/create`
+- **Operaciones en Base de Datos:**
+  1. Crear registro en `prueba` con `estado = 'GENERADA'` y `bancoid = NULL`
+  2. Crear registros relacionados en `bomba`, `motor`, `fluido`, `cliente`, `detalles`
+  3. Guardar la ruta del PDF en `rutaPdfProtocolo`
+  4. Opcionalmente marcar el registro de `ListadosProduccion` como procesado
 
-1.  **Gestión de Estados:**
-    - Actualmente la tabla `prueba` no tiene un campo explícito de "estado". Se debe evaluar añadir una columna `estado` (ENUM: 'GENERATED', 'IN_PROGRESS', 'COMPLETED') o inferirlo a partir de la presencia de resultados.
+---
 
-2.  **Creación Completa de Pruebas:**
-    - Implementar la lógica transaccional para crear una `prueba` completa insertando simultáneamente en todas las tablas relacionadas (`bomba`, `motor`, etc.) desde el formulario de validación.
+## Fase 2: Ejecución (Taller)
 
-3.  **Captura de Resultados:**
-    - Implementar los endpoints de escritura para `pruebaparametrovalor` y `pruebaparametrocontinuo` para guardar los datos generados durante la ejecución en taller.
+El operario recibe una prueba ya definida y validada por ingeniería.
+
+### 2.1 Selección de Prueba
+- El operario ve la lista de pruebas con estado `GENERADA`.
+- Selecciona una prueba para iniciar.
+
+### 2.2 Asignación de Banco
+Antes de acceder a la vista 3D, el sistema solicita:
+
+- El operario selecciona el banco de pruebas a utilizar.
+- **Endpoint:** `PUT /api/tests/:id/assign-banco`
+- **Operación:** `UPDATE prueba SET bancoid = :bancoId, estado = 'EN_PROCESO'`
+
+### 2.3 Vista 3D del Banco
+- El sistema carga el modelo 3D correspondiente al banco seleccionado.
+- Se muestran los datos teóricos extraídos del PDF como referencia.
+- El operario captura los datos reales durante la ejecución.
+
+### 2.4 Finalización
+- Al completar la captura de datos, se finaliza la prueba.
+- **Endpoint:** `PUT /api/tests/:id/complete`
+- **Operaciones:**
+  1. Guardar valores finales en `pruebaparametrovalor`
+  2. Actualizar `estado = 'COMPLETADA'`
+  3. Generar PDF de reporte final
+
+---
+
+## Endpoints API Requeridos
+
+| Método | Endpoint | Descripción | Estado |
+|--------|----------|-------------|--------|
+| POST | `/api/import-excel` | Importar órdenes desde Excel | Implementado |
+| POST | `/api/import-csv` | Importar órdenes desde CSV | Implementado |
+| GET | `/api/tests` | Listar pruebas (pending + completed) | Implementado |
+| GET | `/api/tests/:id` | Obtener detalle de prueba | Implementado |
+| POST | `/api/tests/create` | Crear prueba desde listado | Pendiente |
+| PUT | `/api/tests/:id/assign-banco` | Asignar banco a prueba | Pendiente |
+| PUT | `/api/tests/:id/complete` | Finalizar prueba | Pendiente |
+| GET | `/api/reports/:id` | Obtener reporte completo | Implementado |
+
+---
+
+## Modelo de Datos
+
+### Tabla `prueba` (Modificaciones requeridas)
+
+```sql
+ALTER TABLE prueba ALTER COLUMN bancoid DROP NOT NULL;
+ALTER TABLE prueba 
+ADD COLUMN estado VARCHAR(20) DEFAULT 'GENERADA',
+ADD COLUMN "rutaPdfProtocolo" VARCHAR(500),
+ADD COLUMN "listadoId" INT;
+```
+
+### Relaciones
+
+```
+ListadosProduccion (1) ---> (0..1) prueba
+prueba (1) ---> (1) bomba
+prueba (1) ---> (1) motor
+prueba (1) ---> (1) fluido
+prueba (1) ---> (1) cliente
+prueba (1) ---> (1) detalles
+prueba (0..1) ---> (1) banco
+```

@@ -12,7 +12,13 @@ import {
     FileText,
     Activity,
     Zap,
-    RefreshCw
+    RefreshCw,
+    X,
+    Check,
+    Droplets,
+    Ruler,
+    Settings2,
+    Gauge
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +32,21 @@ import {
 } from "@/components/ui/resizable";
 import { toast } from "sonner";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
+import { UnitConverter } from "@/components/UnitConverter";
+import type { TestsToPerform } from "@/lib/schemas";
+
+// Test types available
+const TESTS_TO_PERFORM = [
+    { key: 'performanceTest', label: 'Perf. Test' },
+    { key: 'npsh', label: 'NPSH' },
+    { key: 'vibraciones', label: 'Vibraciones' },
+    { key: 'ruido', label: 'Ruido' },
+    { key: 'mrt1h', label: 'MRT 1h' },
+    { key: 'mrt4h', label: 'MRT 4h' },
+    { key: 'homologacion', label: 'Homolog.' },
+    { key: 'presenciada', label: 'Presenciada' },
+    { key: 'motorDelPedido', label: 'Motor Pedido' },
+] as const;
 
 interface TestDetail {
     id: string;
@@ -38,9 +59,11 @@ interface TestDetail {
         ordenTrabajo?: string;
         numeroBombas: number;
         fecha?: string;
+        item?: string;
+        pedidoCliente?: string;
     };
     pdfData?: any;
-    testsToPerform?: any;
+    testsToPerform?: TestsToPerform;
 }
 
 export default function TestDetailPage() {
@@ -54,6 +77,7 @@ export default function TestDetailPage() {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [testsToPerform, setTestsToPerform] = useState<TestsToPerform>({});
 
     useEffect(() => {
         const checkMobile = () => {
@@ -121,28 +145,39 @@ export default function TestDetailPage() {
         if (!pdfFile) return;
         setExtracting(true);
         try {
-            const formData = new FormData();
-            formData.append("file", pdfFile);
-
-            const response = await fetch("http://localhost:4000/api/extract-pdf", {
-                method: "POST",
-                body: formData,
-            });
-
-            if (!response.ok) throw new Error("Error en extracción");
-            const result = await response.json();
+            // Use local PDF extraction service
+            const { extractSpecsFromPdf } = await import("@/lib/pdfExtractionService");
+            const specs = await extractSpecsFromPdf(pdfFile);
+            console.log("Specs extraídas:", specs);
 
             setTest(prev => {
                 if (!prev) return null;
-                return { ...prev, pdfData: result.data, status: "EN_PROCESO" };
+                return { ...prev, pdfData: specs, status: "EN_PROCESO" };
             });
+
+            // Auto-set some tests based on extracted data
+            setTestsToPerform(prev => ({
+                ...prev,
+                performanceTest: true,
+                vibraciones: true,
+                npsh: !!specs.npshr,
+                mrt1h: specs.rpm ? specs.rpm > 2000 : false,
+            }));
+
             toast.success("Datos extraídos correctamente");
         } catch (error) {
             console.error(error);
-            toast.error("Error al analizar el PDF");
+            toast.error("Error al analizar el PDF. Asegúrate de que contiene texto seleccionable.");
         } finally {
             setExtracting(false);
         }
+    };
+
+    const toggleTest = (key: string) => {
+        setTestsToPerform(prev => ({
+            ...prev,
+            [key]: !prev[key as keyof TestsToPerform]
+        }));
     };
 
     const handleSave = async () => {
@@ -268,6 +303,18 @@ export default function TestDetailPage() {
                                             <RefreshCw className="w-3.5 h-3.5 mr-2" />
                                             Cambiar PDF
                                         </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => {
+                                                setPdfFile(null);
+                                                setPdfUrl(null);
+                                            }}
+                                            title="Cerrar archivo"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </Button>
                                     </div>
                                 </div>
                                 {/* PDF Content - Full Width */}
@@ -304,7 +351,7 @@ export default function TestDetailPage() {
                         <input type="file" id="pdf-upload" className="hidden" accept=".pdf" onChange={handleFileUpload} />
                     </ResizablePanel>
 
-                    <ResizableHandle withHandle />
+                    <ResizableHandle withHandle className="bg-border focus-visible:ring-0 focus-visible:ring-offset-0" />
 
                     {/* Right Panel - Clean Data View */}
                     <ResizablePanel defaultSize={55} minSize={30} className="bg-background/50 backdrop-blur-sm">
@@ -313,133 +360,133 @@ export default function TestDetailPage() {
 
                                 {/* Section 1: Info (Read Only) */}
                                 <section className="space-y-4">
-                                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                        <FileText className="w-4 h-4" />
-                                        Detalles del Proyecto
-                                    </h3>
-                                    <div className="grid grid-cols-2 gap-y-4 gap-x-8">
-                                        <InfoField label="Pedido" value={test.generalInfo.pedido} />
-                                        <InfoField label="Posición" value={test.generalInfo.posicion || "3000"} />
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                            <FileText className="w-4 h-4" />
+                                            Información General
+                                        </h3>
+                                        <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded border">CSV</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-y-3 gap-x-4">
+                                        <InfoField label="Pedido" value={test.generalInfo.pedido} highlight />
+                                        <InfoField label="Posición" value={test.generalInfo.posicion || "-"} />
+                                        <InfoField label="Nº Bombas" value={String(test.generalInfo.numeroBombas)} highlight />
+                                        <InfoField label="Fecha" value={test.generalInfo.fecha || new Date().toLocaleDateString('es-ES')} />
+                                        <InfoField label="Cliente" value={test.generalInfo.cliente} className="col-span-2" />
                                         <InfoField label="Modelo" value={test.generalInfo.modeloBomba || "-"} className="col-span-2" />
-                                        <InfoField label="Cantidad" value={`${test.generalInfo.numeroBombas} Unidades`} />
                                         <InfoField label="Orden Trabajo" value={test.generalInfo.ordenTrabajo || "-"} />
+                                        <InfoField label="ITEM" value={test.generalInfo.item || "-"} />
+                                        <InfoField label="Ped. Cliente" value={test.generalInfo.pedidoCliente || "-"} />
                                     </div>
                                 </section>
 
                                 <Separator />
 
-                                {/* Section 2: Tests (Chips) */}
+                                {/* Section 2: Tests (Chips) - Interactive */}
                                 <section className="space-y-4">
                                     <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                         <Activity className="w-4 h-4" />
-                                        pruebas requeridas
+                                        Pruebas a Realizar
                                     </h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        <ScopeChip label="Performance" active />
-                                        <ScopeChip label="NPSH" />
-                                        <ScopeChip label="Vibraciones" />
-                                        <ScopeChip label="Ruido" />
-                                        <ScopeChip label="MRT 1h" active />
-                                        <ScopeChip label="MRT 4h" />
-                                        <ScopeChip label="Homolog." />
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
+                                        {TESTS_TO_PERFORM.map(({ key, label }) => (
+                                            <div
+                                                key={key}
+                                                onClick={() => toggleTest(key)}
+                                                className={`flex items-center justify-between px-2 py-2 rounded border cursor-pointer transition-all ${testsToPerform[key as keyof TestsToPerform]
+                                                    ? 'bg-primary/10 border-primary/30 text-primary' // Active state
+                                                    : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/20' // Inactive state (restored)
+                                                    }`}
+                                            >
+                                                <span className={`text-[10px] sm:text-xs font-medium leading-tight ${testsToPerform[key as keyof TestsToPerform]
+                                                    ? 'text-primary'
+                                                    : 'text-muted-foreground'
+                                                    }`}>
+                                                    {label}
+                                                </span>
+                                                <div className={`w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${testsToPerform[key as keyof TestsToPerform]
+                                                    ? 'bg-primary border-primary'
+                                                    : 'border-muted-foreground/50 bg-background'
+                                                    }`}>
+                                                    {testsToPerform[key as keyof TestsToPerform] && (
+                                                        <Check className="w-2 h-2 text-white" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </section>
 
                                 <Separator />
 
-                                {/* Section 3: Extraction (Interactive & Editable) */}
+                                {/* Section 3: Hoja de Datos PDF */}
                                 <section className="space-y-6">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between border-b pb-2">
                                         <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                             <Zap className="w-4 h-4" />
-                                            Parámetros Hidráulicos
+                                            Hoja de Datos PDF
                                         </h3>
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="h-7 text-[10px] px-2"
+                                            className="h-7 text-[10px] px-3 border-primary/30 text-primary hover:bg-primary/10"
                                             onClick={handleAnalyze}
                                             disabled={!pdfFile || extracting}
                                         >
                                             {extracting ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Search className="w-3 h-3 mr-1.5" />}
-                                            {extracting ? "Analizando..." : "Auto-Extraer"}
+                                            {extracting ? "Analizando..." : "Analizar PDF Real"}
                                         </Button>
                                     </div>
 
-                                    <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-6 gap-y-4">
-                                        <CleanInput
-                                            label="Caudal"
-                                            value={test.pdfData?.flowRate}
-                                            unit="m³/h"
-                                            onChange={(val) => handlePdfDataChange("flowRate", val)}
-                                        />
-                                        <CleanInput
-                                            label="TDH"
-                                            value={test.pdfData?.head}
-                                            unit="m"
-                                            onChange={(val) => handlePdfDataChange("head", val)}
-                                        />
-                                        <CleanInput
-                                            label="RPM"
-                                            value={test.pdfData?.rpm}
-                                            unit="rpm"
-                                            onChange={(val) => handlePdfDataChange("rpm", val)}
-                                        />
-                                        <CleanInput
-                                            label="Eficiencia"
-                                            value={test.pdfData?.efficiency}
-                                            unit="%"
-                                            onChange={(val) => handlePdfDataChange("efficiency", val)}
-                                        />
-                                        <CleanInput
-                                            label="Potencia"
-                                            value={test.pdfData?.maxPower}
-                                            unit="kW"
-                                            onChange={(val) => handlePdfDataChange("maxPower", val)}
-                                        />
-                                        <CleanInput
-                                            label="NPSHr"
-                                            value={test.pdfData?.npshr}
-                                            unit="m"
-                                            onChange={(val) => handlePdfDataChange("npshr", val)}
-                                        />
+                                    {/* Performance */}
+                                    <div className="space-y-2">
+                                        <SectionHeader icon={Gauge} title="Performance" />
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                                            <CleanInput label="Caudal" value={test.pdfData?.flowRate} unit="m³/h" onChange={(val) => handlePdfDataChange("flowRate", val)} />
+                                            <CleanInput label="TDH" value={test.pdfData?.head} unit="m" onChange={(val) => handlePdfDataChange("head", val)} />
+                                            <CleanInput label="RPM" value={test.pdfData?.rpm} unit="rpm" onChange={(val) => handlePdfDataChange("rpm", val)} />
+                                            <CleanInput label="Potencia" value={test.pdfData?.maxPower} unit="kW" onChange={(val) => handlePdfDataChange("maxPower", val)} />
+                                            <CleanInput label="Eficiencia" value={test.pdfData?.efficiency} unit="%" onChange={(val) => handlePdfDataChange("efficiency", val)} />
+                                            <CleanInput label="NPSHr" value={test.pdfData?.npshr} unit="m" onChange={(val) => handlePdfDataChange("npshr", val)} />
+                                            <CleanInput label="Q Min" value={test.pdfData?.qMin} unit="m³/h" onChange={(val) => handlePdfDataChange("qMin", val)} />
+                                            <CleanInput label="Q BEP" value={test.pdfData?.bepFlow} unit="m³/h" onChange={(val) => handlePdfDataChange("bepFlow", val)} />
+                                        </div>
                                     </div>
 
-                                    <div className="space-y-4 pt-2">
-                                        <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">Construcción y Fluido</h4>
-                                        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-6 gap-y-4">
-                                            <CleanInput
-                                                label="D. Impulsor"
-                                                value={test.pdfData?.impellerDiameter}
-                                                unit="mm"
-                                                onChange={(val) => handlePdfDataChange("impellerDiameter", val)}
-                                            />
-                                            <CleanInput
-                                                label="Viscosidad"
-                                                value={test.pdfData?.viscosity}
-                                                unit="cP"
-                                                onChange={(val) => handlePdfDataChange("viscosity", val)}
-                                            />
-                                            <CleanInput
-                                                label="Densidad"
-                                                value={test.pdfData?.density}
-                                                unit="kg/m³"
-                                                onChange={(val) => handlePdfDataChange("density", val)}
-                                            />
-                                            <CleanInput
-                                                label="Temperatura"
-                                                value={test.pdfData?.temperature}
-                                                unit="°C"
-                                                onChange={(val) => handlePdfDataChange("temperature", val)}
-                                            />
-                                            <CleanInput
-                                                label="Tipo de Sello"
-                                                value={test.pdfData?.sealType}
-                                                onChange={(val) => handlePdfDataChange("sealType", val)}
-                                            />
+                                    {/* Fluid & Construction */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <SectionHeader icon={Droplets} title="Fluido" />
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                <CleanInput label="Temp." value={test.pdfData?.temperature} unit="°C" onChange={(val) => handlePdfDataChange("temperature", val)} />
+                                                <CleanInput label="Densidad" value={test.pdfData?.density} unit="kg/m³" onChange={(val) => handlePdfDataChange("density", val)} />
+                                                <CleanInput label="Viscosidad" value={test.pdfData?.viscosity} unit="cP" onChange={(val) => handlePdfDataChange("viscosity", val)} />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <SectionHeader icon={Ruler} title="Construcción" />
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                <CleanInput label="D. Impulsor" value={test.pdfData?.impellerDiameter} unit="mm" onChange={(val) => handlePdfDataChange("impellerDiameter", val)} />
+                                                <CleanInput label="Aspiración" value={test.pdfData?.suctionDiameter} unit="mm" onChange={(val) => handlePdfDataChange("suctionDiameter", val)} />
+                                                <CleanInput label="Descarga" value={test.pdfData?.dischargeDiameter} unit="mm" onChange={(val) => handlePdfDataChange("dischargeDiameter", val)} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Other */}
+                                    <div className="space-y-2">
+                                        <SectionHeader icon={Settings2} title="Otros" />
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                            <CleanInput label="Tolerancia" value={test.pdfData?.tolerance} onChange={(val) => handlePdfDataChange("tolerance", val)} />
+                                            <CleanInput label="Tipo Cierre" value={test.pdfData?.sealType} onChange={(val) => handlePdfDataChange("sealType", val)} />
                                         </div>
                                     </div>
                                 </section>
+
+                                <Separator />
+
+                                {/* Unit Converter */}
+                                <UnitConverter />
                             </div>
                         </ScrollArea>
                     </ResizablePanel>
@@ -464,24 +511,20 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
-function InfoField({ label, value, className = "" }: { label: string, value: string | number, className?: string }) {
+function InfoField({ label, value, highlight, className = "" }: { label: string, value: string | number, highlight?: boolean, className?: string }) {
     return (
         <div className={className}>
-            <p className="text-xs text-muted-foreground mb-1">{label}</p>
-            <p className="font-medium text-sm text-foreground break-words">{value}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">{label}</p>
+            <p className={`text-sm font-medium ${highlight ? 'text-primary font-mono' : 'text-foreground'} break-words`}>{value}</p>
         </div>
     );
 }
 
-function ScopeChip({ label, active = false }: { label: string, active?: boolean }) {
+function SectionHeader({ icon: Icon, title }: { icon: React.ElementType, title: string }) {
     return (
-        <div className={`
-            px-3 py-1.5 rounded-full text-xs font-medium border transition-colors cursor-default
-            ${active
-                ? "bg-primary/10 text-primary border-primary/20"
-                : "bg-transparent text-muted-foreground border-transparent hover:bg-muted"}
-        `}>
-            {label}
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1">
+            <Icon className="w-3 h-3 text-primary" />
+            <span>{title}</span>
         </div>
     );
 }
