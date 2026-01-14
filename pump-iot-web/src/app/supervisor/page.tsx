@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ImportModal } from "@/components/import-modal";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import {
     FileSpreadsheet, RefreshCw, ChevronRight, Search,
     ChevronLeft, ChevronsLeft, ChevronsRight,
-    Filter, ArrowUpDown, ArrowUp, ArrowDown, Upload
+    Filter, ArrowUpDown, ArrowUp, ArrowDown, Upload,
+    CheckCircle2, Loader2, CircleDashed, AlertCircle
 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -50,15 +53,43 @@ interface TestItem {
 const columnHelper = createColumnHelper<TestItem>();
 
 // Status badge config
-const statusConfig: Record<string, { label: string; className: string }> = {
-    PENDING: { label: "Pendiente", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" },
-    IN_PROGRESS: { label: "En Proceso", className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
-    GENERATED: { label: "Generado", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
-    COMPLETED: { label: "Completado", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+// Status badge config
+const baseStatusClass = "border-slate-200 dark:border-slate-700 bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors";
+
+const statusConfig: Record<string, { label: string; icon: React.ElementType; className: string; iconClassName: string }> = {
+    PENDING: {
+        label: "Pendiente",
+        icon: CircleDashed,
+        className: baseStatusClass,
+        iconClassName: "text-orange-500 dark:text-orange-400"
+    },
+    IN_PROGRESS: {
+        label: "En Proceso",
+        icon: Loader2,
+        className: baseStatusClass,
+        iconClassName: "text-blue-500 dark:text-blue-400 animate-spin"
+    },
+    GENERATED: {
+        label: "Generado",
+        icon: CheckCircle2,
+        className: baseStatusClass,
+        iconClassName: "text-green-500 dark:text-green-400"
+    },
+    COMPLETED: {
+        label: "Completado",
+        icon: CheckCircle2,
+        className: baseStatusClass,
+        iconClassName: "text-green-500 dark:text-green-400"
+    },
 };
 
 // Fallback for unknown statuses
-const getStatusConfig = (status: string) => statusConfig[status] || { label: status, className: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200" };
+const getStatusConfig = (status: string) => statusConfig[status] || {
+    label: status,
+    icon: AlertCircle,
+    className: baseStatusClass,
+    iconClassName: "text-slate-400"
+};
 
 // Sortable header component
 function SortableHeader({ column, children }: { column: Column<TestItem, unknown>; children: React.ReactNode }) {
@@ -92,6 +123,7 @@ export default function DashboardPage() {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [lastImport, setLastImport] = useState<{ filename: string; count: number; time: Date } | null>(null);
     const router = useRouter();
+    const tableContainerRef = useRef<HTMLDivElement>(null);
 
     // Table columns with sortable headers
     const columns = useMemo(() => [
@@ -99,8 +131,10 @@ export default function DashboardPage() {
             header: ({ column }) => <SortableHeader column={column}>Estado</SortableHeader>,
             cell: (info) => {
                 const config = getStatusConfig(info.getValue());
+                const Icon = config.icon;
                 return (
-                    <Badge className={config.className}>
+                    <Badge variant="outline" className={`rounded-full pl-1.5 pr-2.5 py-0.5 font-medium border ${config.className}`}>
+                        <Icon className={`w-3.5 h-3.5 mr-1.5 ${config.iconClassName}`} />
                         <span className="hidden sm:inline">{config.label}</span>
                         <span className="sm:hidden">{config.label.charAt(0)}</span>
                     </Badge>
@@ -168,6 +202,52 @@ export default function DashboardPage() {
         },
     });
 
+    // Calculate responsive page size
+    useEffect(() => {
+        const calculatePageSize = () => {
+            // Mobile: Fixed page size, allow window scroll
+            if (window.innerWidth < 768) {
+                if (table.getState().pagination.pageSize !== 20) {
+                    table.setPageSize(20);
+                }
+                return;
+            }
+
+            // Desktop: Dynamic page size
+            if (tableContainerRef.current) {
+                const height = tableContainerRef.current.clientHeight;
+                const headerHeight = 44; // Standard table header height
+                const rowHeight = 44; // Adjusted for py-3 (24px) + text-sm (20px) + border
+                const availableHeight = height - headerHeight;
+                const newPageSize = Math.floor(availableHeight / rowHeight);
+                // Ensure at least 3 rows to show something
+                const safePageSize = Math.max(3, Math.min(newPageSize, 100));
+
+                // Only update if changed significantly to avoid jitter
+                if (safePageSize !== table.getState().pagination.pageSize) {
+                    table.setPageSize(safePageSize);
+                }
+            }
+        };
+
+        // Initial calculation
+        calculatePageSize();
+
+        // Observer for container resize
+        const observer = new ResizeObserver(calculatePageSize);
+        if (tableContainerRef.current) {
+            observer.observe(tableContainerRef.current);
+        }
+
+        // Listen to window resize for switching modes
+        window.addEventListener('resize', calculatePageSize);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', calculatePageSize);
+        };
+    }, [table, tests.length]);
+
     // Fetch tests
     const fetchTests = useCallback(async () => {
         setLoading(true);
@@ -196,14 +276,18 @@ export default function DashboardPage() {
     };
 
     return (
-        <div className="h-full flex flex-col gap-4 sm:gap-6 p-6 overflow-hidden">
+        <div className="h-full flex flex-col gap-4 sm:gap-6 p-6 overflow-y-auto md:overflow-hidden">
             {/* Header - Responsive */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-                    <p className="text-sm sm:text-base text-muted-foreground">
-                        Gestión de pruebas de bombas
-                    </p>
+                <div className="flex items-center gap-2">
+                    <SidebarTrigger className="-ml-1" />
+                    <Separator orientation="vertical" className="mr-2 h-4" />
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+                        <p className="text-sm sm:text-base text-muted-foreground">
+                            Gestión de pruebas de bombas
+                        </p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
                     {lastImport && (
@@ -216,8 +300,42 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Stats Cards - Balanced Compact (Vertical but cleaner) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 shrink-0">
+            {/* Mobile Stats - Compact 2x2 Grid */}
+            <div className="md:hidden grid grid-cols-2 gap-2 shrink-0 mb-2">
+                <Card className="cursor-pointer hover:border-primary/50 transition-colors bg-muted/20 border-dashed shadow-none" onClick={() => setStatusFilter("all")}>
+                    <div className="p-2 flex flex-col items-center justify-center text-center gap-0.5">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Total</span>
+                        <span className="text-lg font-bold text-foreground">{tests.length}</span>
+                    </div>
+                </Card>
+                <Card className="cursor-pointer hover:border-orange-200 transition-colors bg-orange-50/30 border-orange-100 dark:bg-orange-950/20 dark:border-orange-800/50 shadow-none" onClick={() => setStatusFilter("PENDING")}>
+                    <div className="p-2 flex flex-col items-center justify-center text-center gap-0.5">
+                        <span className="text-[10px] font-bold text-orange-600/80 dark:text-orange-400 uppercase tracking-wider">Pendientes</span>
+                        <span className="text-lg font-bold text-orange-700 dark:text-orange-400">
+                            {tests.filter(t => t.status === "PENDING").length}
+                        </span>
+                    </div>
+                </Card>
+                <Card className="cursor-pointer hover:border-blue-200 transition-colors bg-blue-50/30 border-blue-100 dark:bg-blue-950/20 dark:border-blue-800/50 shadow-none" onClick={() => setStatusFilter("IN_PROGRESS")}>
+                    <div className="p-2 flex flex-col items-center justify-center text-center gap-0.5">
+                        <span className="text-[10px] font-bold text-blue-600/80 dark:text-blue-400 uppercase tracking-wider">Proceso</span>
+                        <span className="text-lg font-bold text-blue-700 dark:text-blue-400">
+                            {tests.filter(t => t.status === "IN_PROGRESS").length}
+                        </span>
+                    </div>
+                </Card>
+                <Card className="cursor-pointer hover:border-green-200 transition-colors bg-green-50/30 border-green-100 dark:bg-green-950/20 dark:border-green-800/50 shadow-none" onClick={() => setStatusFilter("GENERATED")}>
+                    <div className="p-2 flex flex-col items-center justify-center text-center gap-0.5">
+                        <span className="text-[10px] font-bold text-green-600/80 dark:text-green-400 uppercase tracking-wider">Generados</span>
+                        <span className="text-lg font-bold text-green-700 dark:text-green-400">
+                            {tests.filter(t => t.status === "GENERATED").length}
+                        </span>
+                    </div>
+                </Card>
+            </div>
+
+            {/* Desktop Stats - Full Cards */}
+            <div className="hidden md:grid grid-cols-4 gap-4 shrink-0">
                 <Card className="cursor-pointer hover:border-primary/50 transition-colors sm:bg-card" onClick={() => setStatusFilter("all")}>
                     <div className="p-4 flex flex-col gap-1">
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-tight">Total</span>
@@ -320,8 +438,8 @@ export default function DashboardPage() {
                         </div>
                     ) : (
                         <>
-                            {/* Scrollable Table */}
-                            <div className="flex-1 overflow-auto border rounded-lg scrollbar-hover-only">
+                            {/* Responsive Table View (No Scroll Vertical on Desktop, Auto Height on Mobile) */}
+                            <div ref={tableContainerRef} className="flex-1 w-full overflow-x-auto min-h-[500px] md:min-h-0 md:overflow-y-hidden border rounded-lg bg-background">
                                 <Table>
                                     <TableHeader className="sticky top-0 z-10 bg-muted/50">
                                         {table.getHeaderGroups().map((headerGroup) => (
@@ -360,22 +478,7 @@ export default function DashboardPage() {
                             {/* Pagination - Compact Single Row */}
                             <div className="flex flex-col sm:flex-row items-center justify-between py-4 sm:py-6 gap-4 shrink-0 border-t mt-4">
                                 <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest hidden lg:inline">Por página:</span>
-                                        <Select
-                                            value={String(table.getState().pagination.pageSize)}
-                                            onValueChange={(value) => table.setPageSize(Number(value))}
-                                        >
-                                            <SelectTrigger className="w-[72px] h-7 text-[11px] border-slate-200">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="10">10</SelectItem>
-                                                <SelectItem value="20">20</SelectItem>
-                                                <SelectItem value="50">50</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest hidden lg:inline">Registros</span>
                                     <div className="flex items-center gap-1">
                                         <Button
                                             variant="outline"

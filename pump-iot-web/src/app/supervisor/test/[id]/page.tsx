@@ -30,6 +30,7 @@ import {
     ResizablePanel,
     ResizablePanelGroup
 } from "@/components/ui/resizable";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { toast } from "sonner";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { UnitConverter } from "@/components/UnitConverter";
@@ -244,6 +245,8 @@ export default function TestDetailPage() {
             {/* Minimal Header */}
             <header className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 border-b bg-background/50 backdrop-blur-sm shrink-0 gap-4">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <SidebarTrigger />
+                    <Separator orientation="vertical" className="h-4" />
                     <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2 text-muted-foreground hover:text-foreground shrink-0" onClick={() => router.push("/supervisor")}>
                         <ArrowLeft className="w-4 h-4" />
                     </Button>
@@ -388,7 +391,7 @@ export default function TestDetailPage() {
                                         <Activity className="w-4 h-4" />
                                         Pruebas a Realizar
                                     </h3>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
+                                    <div className="flex flex-wrap gap-2">
                                         {TESTS_TO_PERFORM.map(({ key, label }) => (
                                             <div
                                                 key={key}
@@ -441,7 +444,7 @@ export default function TestDetailPage() {
                                     {/* Performance */}
                                     <div className="space-y-2">
                                         <SectionHeader icon={Gauge} title="Performance" />
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                                        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
                                             <CleanInput label="Caudal" value={test.pdfData?.flowRate} unit="m³/h" onChange={(val) => handlePdfDataChange("flowRate", val)} />
                                             <CleanInput label="TDH" value={test.pdfData?.head} unit="m" onChange={(val) => handlePdfDataChange("head", val)} />
                                             <CleanInput label="RPM" value={test.pdfData?.rpm} unit="rpm" onChange={(val) => handlePdfDataChange("rpm", val)} />
@@ -457,7 +460,7 @@ export default function TestDetailPage() {
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <SectionHeader icon={Droplets} title="Fluido" />
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
                                                 <CleanInput label="Temp." value={test.pdfData?.temperature} unit="°C" onChange={(val) => handlePdfDataChange("temperature", val)} />
                                                 <CleanInput label="Densidad" value={test.pdfData?.density} unit="kg/m³" onChange={(val) => handlePdfDataChange("density", val)} />
                                                 <CleanInput label="Viscosidad" value={test.pdfData?.viscosity} unit="cP" onChange={(val) => handlePdfDataChange("viscosity", val)} />
@@ -465,7 +468,7 @@ export default function TestDetailPage() {
                                         </div>
                                         <div className="space-y-2">
                                             <SectionHeader icon={Ruler} title="Construcción" />
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
                                                 <CleanInput label="D. Impulsor" value={test.pdfData?.impellerDiameter} unit="mm" onChange={(val) => handlePdfDataChange("impellerDiameter", val)} />
                                                 <CleanInput label="Aspiración" value={test.pdfData?.suctionDiameter} unit="mm" onChange={(val) => handlePdfDataChange("suctionDiameter", val)} />
                                                 <CleanInput label="Descarga" value={test.pdfData?.dischargeDiameter} unit="mm" onChange={(val) => handlePdfDataChange("dischargeDiameter", val)} />
@@ -476,7 +479,7 @@ export default function TestDetailPage() {
                                     {/* Other */}
                                     <div className="space-y-2">
                                         <SectionHeader icon={Settings2} title="Otros" />
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
                                             <CleanInput label="Tolerancia" value={test.pdfData?.tolerance} onChange={(val) => handlePdfDataChange("tolerance", val)} />
                                             <CleanInput label="Tipo Cierre" value={test.pdfData?.sealType} onChange={(val) => handlePdfDataChange("sealType", val)} />
                                         </div>

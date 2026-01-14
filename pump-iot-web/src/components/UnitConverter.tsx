@@ -2,8 +2,13 @@
 
 import { useState } from 'react';
 import { ArrowRightLeft, Calculator } from 'lucide-react';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from '@/components/ui/accordion';
 
 export function UnitConverter() {
     // State for input values
@@ -26,54 +31,59 @@ export function UnitConverter() {
     const mm = inches ? (parseFloat(inches) * 25.4).toFixed(2) : '-';
 
     return (
-        <Card className="p-4 bg-muted/30 border-dashed">
-            <div className="flex items-center gap-2 text-primary mb-3">
-                <Calculator className="w-4 h-4" />
-                <h3 className="text-sm font-semibold uppercase tracking-wider">Conversor de Unidades</h3>
-            </div>
+        <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="unit-converter" className="border-dashed">
+                <AccordionTrigger className="hover:no-underline py-3">
+                    <div className="flex items-center gap-2 text-primary">
+                        <Calculator className="w-4 h-4" />
+                        <span className="text-sm font-semibold uppercase tracking-wider">Conversor de Unidades</span>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                    <div className="space-y-2 pt-2">
+                        {/* Flow: USGPM -> m3/h */}
+                        <ConversionRow
+                            label="Caudal"
+                            input={usgpm}
+                            setInput={setUsgpm}
+                            unitIn="Usgpm"
+                            valueOut={m3h}
+                            unitOut="m³/h"
+                        />
 
-            <div className="space-y-2">
-                {/* Flow: USGPM -> m3/h */}
-                <ConversionRow
-                    label="Caudal"
-                    input={usgpm}
-                    setInput={setUsgpm}
-                    unitIn="Usgpm"
-                    valueOut={m3h}
-                    unitOut="m³/h"
-                />
+                        {/* Head: ft -> m */}
+                        <ConversionRow
+                            label="TDH"
+                            input={ft}
+                            setInput={setFt}
+                            unitIn="ft"
+                            valueOut={meters}
+                            unitOut="m"
+                        />
 
-                {/* Head: ft -> m */}
-                <ConversionRow
-                    label="TDH"
-                    input={ft}
-                    setInput={setFt}
-                    unitIn="ft"
-                    valueOut={meters}
-                    unitOut="m"
-                />
+                        {/* Power: hp -> kW */}
+                        <ConversionRow
+                            label="Potencia"
+                            input={hp}
+                            setInput={setHp}
+                            unitIn="hp"
+                            valueOut={kw}
+                            unitOut="kW"
+                        />
 
-                {/* Power: hp -> kW */}
-                <ConversionRow
-                    label="Potencia"
-                    input={hp}
-                    setInput={setHp}
-                    unitIn="hp"
-                    valueOut={kw}
-                    unitOut="kW"
-                />
-
-                {/* Diameter: in -> mm */}
-                <ConversionRow
-                    label="Diámetro"
-                    input={inches}
-                    setInput={setInches}
-                    unitIn="in"
-                    valueOut={mm}
-                    unitOut="mm"
-                />
-            </div>
-        </Card>
+                        {/* Diameter: in -> mm */}
+                        <ConversionRow
+                            label="Diámetro"
+                            input={inches}
+                            setInput={setInches}
+                            unitIn="in"
+                            valueOut={mm}
+                            unitOut="mm"
+                        />
+                    </div>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
     );
 }
 

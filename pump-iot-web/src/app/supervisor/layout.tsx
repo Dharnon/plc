@@ -1,6 +1,6 @@
 "use client";
 
-import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarTrigger, SidebarRail } from "@/components/ui/sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -49,15 +49,23 @@ export default function SupervisorLayout({
     return (
         <SidebarProvider>
             <div className="h-screen flex w-full overflow-hidden">
-                <Sidebar className="border-r shrink-0">
-                    <SidebarHeader className="p-4">
-                        <div className="flex items-center justify-center">
-                            <div className="relative w-full flex justify-center">
+                <Sidebar collapsible="icon" className="border-r shrink-0">
+                    <SidebarHeader className="p-4 group-data-[collapsible=icon]:p-2">
+                        <div className="flex items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
+                            <div className="relative w-full flex justify-center group-data-[collapsible=icon]:hidden">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src="/flowserve-logo.png"
                                     alt="Flowserve Logo"
                                     className="w-50 h-18 object-cover object-center"
+                                />
+                            </div>
+                            <div className="hidden group-data-[collapsible=icon]:flex items-center justify-center w-full pt-2">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src="/flowserve-icon.png"
+                                    alt="Flowserve Icon"
+                                    className="w-8 h-8 object-contain"
                                 />
                             </div>
                         </div>
@@ -84,7 +92,7 @@ export default function SupervisorLayout({
 
                     <SidebarFooter className="p-4">
                         {/* Powered by HEXA Ingenieros */}
-                        <div className="flex flex-row items-end gap-2 opacity-60 hover:opacity-100 transition-opacity select-none group mb-4 w-full pl-1">
+                        <div className="flex flex-row items-end gap-2 opacity-60 hover:opacity-100 transition-opacity select-none group mb-4 w-full pl-1 group-data-[collapsible=icon]:hidden">
                             <span
                                 className="text-[16px] text-muted-foreground font-normal mb-1.5"
                                 style={{ fontFamily: 'var(--font-dancing-script), cursive' }}
@@ -104,30 +112,28 @@ export default function SupervisorLayout({
                             </div>
                         </div>
 
-                        <Separator className="mb-4" />
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs text-muted-foreground">Tema</span>
-                            <ThemeToggle />
-                        </div>
-                        <div className="flex items-center gap-3">
+                        <Separator className="mb-4 group-data-[collapsible=icon]:mb-2" />
+                        <div className="flex items-center gap-3 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
                             <Avatar className="w-8 h-8">
                                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                                     {user.username.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                                 <p className="text-sm font-medium truncate">{user.username}</p>
                                 <p className="text-xs text-muted-foreground">{user.role}</p>
                             </div>
+                            <ThemeToggle />
                             <button
                                 onClick={handleLogout}
-                                className="p-2 hover:bg-accent rounded-md transition-colors"
+                                className="p-2 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400 rounded-md transition-colors"
                                 title="Cerrar sesión"
                             >
-                                <LogOut className="w-4 h-4 text-muted-foreground" />
+                                <LogOut className="w-4 h-4" />
                             </button>
                         </div>
                     </SidebarFooter>
+                    <SidebarRail />
                 </Sidebar>
 
                 <main className="flex-1 flex flex-col min-h-0 min-w-0 bg-background">
