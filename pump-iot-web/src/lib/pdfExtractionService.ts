@@ -12,6 +12,7 @@ export interface ExtractedSpecs {
     efficiency?: number;
     npshr?: number;
     qMin?: number;
+    qMax?: number;
     bepFlow?: number;
     temperature?: number;
     viscosity?: number;
@@ -21,6 +22,7 @@ export interface ExtractedSpecs {
     dischargeDiameter?: number;
     tolerance?: string;
     sealType?: string;
+    liquidDescription?: string;
 }
 
 export async function extractSpecsFromPdf(file: File): Promise<ExtractedSpecs> {
@@ -177,6 +179,15 @@ function parseTextToSpecs(text: string): ExtractedSpecs {
     // Tolerancia
     specs.tolerance = extractString([
         /Test tolerance\s*:\s*([^:\n]+)/i
+    ]);
+
+    // Liquid Description (Fluido Cliente)
+    // Busca "Liquid description : -" o "Liquid description : Water"
+    // Use regex that captures text after "Liquid description :" until end of line or next field start
+    // Since PDF extraction might put "Seal configuration" on same line, we need to be careful.
+    specs.liquidDescription = extractString([
+        /Liquid description\s*:\s*(.*?)(?=\s+(?:Temperature|Seal|Performance|$))/i,
+        /Liquid description\s*:\s*([^:\n]+)/i
     ]);
 
     // Seal

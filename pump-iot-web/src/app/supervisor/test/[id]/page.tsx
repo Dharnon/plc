@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { UnitConverter } from "@/components/UnitConverter";
 import type { TestsToPerform } from "@/lib/schemas";
+import { uploadPdf } from "@/lib/api";
 
 // Test types available
 const TESTS_TO_PERFORM = [
@@ -191,7 +192,23 @@ export default function TestDetailPage() {
                 body: JSON.stringify({ ...test, status: "GENERADO" })
             });
 
-            if (!response.ok) throw new Error("Error al guardar");
+            if (!response.ok) throw new Error("Error al guardar datos del protocolo");
+
+            // --- New: Upload PDF to Database if file exists ---
+            if (pdfFile && test.id) {
+                try {
+                    // Assuming test.id is the numeroprotocolo or we can cast it if it's numerical
+                    // Check if test.id is numerical, otherwise use a fallback or specific field
+                    const numeroProtocolo = parseInt(test.id);
+                    if (!isNaN(numeroProtocolo)) {
+                        await uploadPdf(numeroProtocolo, pdfFile);
+                        console.log("PDF guardado en base de datos correctamente");
+                    }
+                } catch (pdfError) {
+                    console.error("Error saving PDF to DB:", pdfError);
+                    toast.error("Datos guardados, pero hubo un error al almacenar el archivo PDF");
+                }
+            }
             toast.success("Prueba generada exitosamente");
             router.push("/supervisor");
         } catch (error) {
@@ -243,19 +260,20 @@ export default function TestDetailPage() {
     return (
         <div className="h-full flex flex-col overflow-hidden bg-background">
             {/* Minimal Header */}
-            <header className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 border-b bg-background/50 backdrop-blur-sm shrink-0 gap-4">
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-4 py-2 border-b bg-background/50 backdrop-blur-sm shrink-0 gap-2">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <SidebarTrigger />
                     <Separator orientation="vertical" className="h-4" />
                     <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2 text-muted-foreground hover:text-foreground shrink-0" onClick={() => router.push("/supervisor")}>
                         <ArrowLeft className="w-4 h-4" />
                     </Button>
-                    <div className="min-w-0 overflow-hidden">
-                        <div className="flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium overflow-hidden">
-                            <span className="truncate">Pruebas</span>
-                            <ChevronRight className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{test.generalInfo.pedido}</span>
+                    <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium shrink-0">
+                            <span>Pruebas</span>
+                            <ChevronRight className="w-3 h-3" />
+                            <span>{test.generalInfo.pedido}</span>
                         </div>
+                        <span className="text-muted-foreground/30 text-lg sm:text-xl font-light">/</span>
                         <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate" title={test.generalInfo.cliente}>
                             {test.generalInfo.cliente}
                         </h1>
@@ -276,7 +294,7 @@ export default function TestDetailPage() {
             </header>
 
             {/* Resizable Content Split */}
-            <div className="flex-1 min-h-0 bg-slate-50/30">
+            <div className="flex-1 min-h-0 bg-muted/20">
                 <ResizablePanelGroup direction={isMobile ? "vertical" : "horizontal"} key={isMobile ? "v" : "h"}>
 
                     {/* PDF Area - Minimalist & Resizable */}
@@ -284,7 +302,7 @@ export default function TestDetailPage() {
                         {pdfUrl ? (
                             <div className="flex-1 flex flex-col min-h-0">
                                 {/* PDF Header - Full Width */}
-                                <div className="flex flex-row items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-background border-b shrink-0 gap-3">
+                                <div className="flex flex-row items-center justify-between px-2 py-2 bg-background border-b shrink-0 gap-2">
                                     <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-8 h-8 rounded bg-red-50 flex items-center justify-center shrink-0">
                                             <FileText className="w-4 h-4 text-red-500" />
@@ -328,17 +346,17 @@ export default function TestDetailPage() {
                                 <div
                                     className={`
                                         flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl transition-all duration-200 select-none min-h-[300px]
-                                        ${isDragging ? "border-red-400 bg-red-50/30" : "border-slate-200 hover:border-red-200 hover:bg-slate-50/50"}
+                                        ${isDragging ? "border-red-500 bg-red-500/5" : "border-border bg-muted/30 hover:border-red-500/30 hover:bg-muted/50"}
                                     `}
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
                                 >
-                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-red-50 flex items-center justify-center mb-4 sm:mb-6">
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4 sm:mb-6">
                                         <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" />
                                     </div>
-                                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3 px-4 text-center">Sube un reporte PDF</h3>
-                                    <p className="text-sm sm:text-base text-slate-500 max-w-sm text-center mb-6 sm:mb-8 leading-relaxed px-6">
+                                    <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-2 sm:mb-3 px-4 text-center">Sube un reporte PDF</h3>
+                                    <p className="text-sm sm:text-base text-muted-foreground max-w-sm text-center mb-6 sm:mb-8 leading-relaxed px-6">
                                         Visualiza el reporte y extrae datos automáticamente.
                                     </p>
                                     <Button
@@ -444,13 +462,14 @@ export default function TestDetailPage() {
                                     {/* Performance */}
                                     <div className="space-y-2">
                                         <SectionHeader icon={Gauge} title="Performance" />
-                                        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                                        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))' }}>
                                             <CleanInput label="Caudal" value={test.pdfData?.flowRate} unit="m³/h" onChange={(val) => handlePdfDataChange("flowRate", val)} />
                                             <CleanInput label="TDH" value={test.pdfData?.head} unit="m" onChange={(val) => handlePdfDataChange("head", val)} />
                                             <CleanInput label="RPM" value={test.pdfData?.rpm} unit="rpm" onChange={(val) => handlePdfDataChange("rpm", val)} />
                                             <CleanInput label="Potencia" value={test.pdfData?.maxPower} unit="kW" onChange={(val) => handlePdfDataChange("maxPower", val)} />
                                             <CleanInput label="Eficiencia" value={test.pdfData?.efficiency} unit="%" onChange={(val) => handlePdfDataChange("efficiency", val)} />
                                             <CleanInput label="NPSHr" value={test.pdfData?.npshr} unit="m" onChange={(val) => handlePdfDataChange("npshr", val)} />
+                                            <CleanInput label="Q Max" value={test.pdfData?.qMax} unit="m³/h" onChange={(val) => handlePdfDataChange("qMax", val)} />
                                             <CleanInput label="Q Min" value={test.pdfData?.qMin} unit="m³/h" onChange={(val) => handlePdfDataChange("qMin", val)} />
                                             <CleanInput label="Q BEP" value={test.pdfData?.bepFlow} unit="m³/h" onChange={(val) => handlePdfDataChange("bepFlow", val)} />
                                         </div>
@@ -460,7 +479,8 @@ export default function TestDetailPage() {
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <SectionHeader icon={Droplets} title="Fluido" />
-                                            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
+                                            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))' }}>
+                                                <CleanInput label="Fluido Cliente" value={test.pdfData?.liquidDescription} onChange={(val) => handlePdfDataChange("liquidDescription", val)} />
                                                 <CleanInput label="Temp." value={test.pdfData?.temperature} unit="°C" onChange={(val) => handlePdfDataChange("temperature", val)} />
                                                 <CleanInput label="Densidad" value={test.pdfData?.density} unit="kg/m³" onChange={(val) => handlePdfDataChange("density", val)} />
                                                 <CleanInput label="Viscosidad" value={test.pdfData?.viscosity} unit="cP" onChange={(val) => handlePdfDataChange("viscosity", val)} />
@@ -479,7 +499,7 @@ export default function TestDetailPage() {
                                     {/* Other */}
                                     <div className="space-y-2">
                                         <SectionHeader icon={Settings2} title="Otros" />
-                                        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                                        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))' }}>
                                             <CleanInput label="Tolerancia" value={test.pdfData?.tolerance} onChange={(val) => handlePdfDataChange("tolerance", val)} />
                                             <CleanInput label="Tipo Cierre" value={test.pdfData?.sealType} onChange={(val) => handlePdfDataChange("sealType", val)} />
                                         </div>
