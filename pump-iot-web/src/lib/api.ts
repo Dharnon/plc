@@ -104,6 +104,29 @@ export async function importCsv(file: File): Promise<{ success: boolean; count: 
     return response.json();
 }
 
+// --- PDF Storage ---
+export interface PdfResponse {
+    numeroprotocolo: number;
+    success: boolean;
+}
+
+export async function uploadPdf(numeroProtocolo: number, file: File): Promise<PdfResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('numeroProtocolo', numeroProtocolo.toString());
+
+    const response = await fetch(`${API_BASE_URL}/api/pdf/upload`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to upload PDF to database');
+    }
+
+    return response.json();
+}
+
 // --- Health ---
 export async function checkHealth(): Promise<{ status: string; version: string }> {
     return fetchApi('/api/health');

@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { UnitConverter } from "@/components/UnitConverter";
 import type { TestsToPerform } from "@/lib/schemas";
+import { uploadPdf } from "@/lib/api";
 
 // Test types available
 const TESTS_TO_PERFORM = [
@@ -191,7 +192,23 @@ export default function TestDetailPage() {
                 body: JSON.stringify({ ...test, status: "GENERADO" })
             });
 
-            if (!response.ok) throw new Error("Error al guardar");
+            if (!response.ok) throw new Error("Error al guardar datos del protocolo");
+
+            // --- New: Upload PDF to Database if file exists ---
+            if (pdfFile && test.id) {
+                try {
+                    // Assuming test.id is the numeroprotocolo or we can cast it if it's numerical
+                    // Check if test.id is numerical, otherwise use a fallback or specific field
+                    const numeroProtocolo = parseInt(test.id);
+                    if (!isNaN(numeroProtocolo)) {
+                        await uploadPdf(numeroProtocolo, pdfFile);
+                        console.log("PDF guardado en base de datos correctamente");
+                    }
+                } catch (pdfError) {
+                    console.error("Error saving PDF to DB:", pdfError);
+                    toast.error("Datos guardados, pero hubo un error al almacenar el archivo PDF");
+                }
+            }
             toast.success("Prueba generada exitosamente");
             router.push("/supervisor");
         } catch (error) {

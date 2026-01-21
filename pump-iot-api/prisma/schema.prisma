@@ -145,6 +145,7 @@ model prueba {
   fluido                  fluido?
   fluidoh2o               fluidoh2o?
   motor                   motor?
+  pdf                     pdf?
   banco                   banco                     @relation(fields: [bancoid], references: [id], onDelete: NoAction, onUpdate: NoAction)
   pruebaparametrocontinuo pruebaparametrocontinuo[]
   pruebaparametrovalor    pruebaparametrovalor[]
@@ -195,4 +196,10 @@ model unidad {
   id        Int         @id @default(autoincrement())
   nombre    String?     @db.VarChar(100)
   parametro parametro[]
+}
+
+model pdf {
+  numeroprotocolo Int    @id
+  archivo         Bytes
+  prueba          prueba @relation(fields: [numeroprotocolo], references: [numeroprotocolo], onDelete: NoAction, onUpdate: NoAction)
 }
