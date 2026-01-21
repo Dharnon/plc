@@ -1,34 +1,18 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ImportModal } from "@/components/import-modal";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
-    FileSpreadsheet, RefreshCw, ChevronRight, Search,
-    ChevronLeft, ChevronsLeft, ChevronsRight,
-    Filter, ArrowUpDown, ArrowUp, ArrowDown, Upload,
-    CheckCircle2, Loader2, CircleDashed, AlertCircle
+    FileSpreadsheet, RefreshCw, Search,
+    Filter, Upload,
 } from "lucide-react";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import {
-    useReactTable,
-    getCoreRowModel,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    flexRender,
-    createColumnHelper,
-    type SortingState,
-    type Column,
-} from "@tanstack/react-table";
 import {
     Select,
     SelectContent,
@@ -36,81 +20,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-
-interface TestItem {
-    id: string;
-    status: string;
-    generalInfo: {
-        pedido: string;
-        posicion?: string;
-        cliente: string;
-        modeloBomba?: string;
-        ordenTrabajo?: string;
-        numeroBombas: number;
-    };
-}
-
-const columnHelper = createColumnHelper<TestItem>();
-
-// Status badge config
-// Status badge config
-const baseStatusClass = "border-slate-200 dark:border-slate-700 bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors";
-
-const statusConfig: Record<string, { label: string; icon: React.ElementType; className: string; iconClassName: string }> = {
-    PENDING: {
-        label: "Pendiente",
-        icon: CircleDashed,
-        className: baseStatusClass,
-        iconClassName: "text-orange-500 dark:text-orange-400"
-    },
-    IN_PROGRESS: {
-        label: "En Proceso",
-        icon: Loader2,
-        className: baseStatusClass,
-        iconClassName: "text-blue-500 dark:text-blue-400 animate-spin"
-    },
-    GENERATED: {
-        label: "Generado",
-        icon: CheckCircle2,
-        className: baseStatusClass,
-        iconClassName: "text-green-500 dark:text-green-400"
-    },
-    COMPLETED: {
-        label: "Completado",
-        icon: CheckCircle2,
-        className: baseStatusClass,
-        iconClassName: "text-green-500 dark:text-green-400"
-    },
-};
-
-// Fallback for unknown statuses
-const getStatusConfig = (status: string) => statusConfig[status] || {
-    label: status,
-    icon: AlertCircle,
-    className: baseStatusClass,
-    iconClassName: "text-slate-400"
-};
-
-// Sortable header component
-function SortableHeader({ column, children }: { column: Column<TestItem, unknown>; children: React.ReactNode }) {
-    return (
-        <Button
-            variant="ghost"
-            size="sm"
-            className="-ml-3 h-8 data-[state=open]:bg-accent"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-            {children}
-            {column.getIsSorted() === "asc" ? (
-                <ArrowUp className="ml-2 h-4 w-4" />
-            ) : column.getIsSorted() === "desc" ? (
-                <ArrowDown className="ml-2 h-4 w-4" />
-            ) : (
-                <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-            )}
-        </Button>
-    );
-}
+import { DataTable } from "@/components/supervisor/data-table";
+import { columns, TestItem } from "@/components/supervisor/columns";
 
 /**
  * Dashboard - Fully Responsive with Data Table, Sticky Header, Sorting
@@ -120,133 +31,14 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [globalFilter, setGlobalFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
-    const [sorting, setSorting] = useState<SortingState>([]);
     const [lastImport, setLastImport] = useState<{ filename: string; count: number; time: Date } | null>(null);
     const router = useRouter();
-    const tableContainerRef = useRef<HTMLDivElement>(null);
-
-    // Table columns with sortable headers
-    const columns = useMemo(() => [
-        columnHelper.accessor("status", {
-            header: ({ column }) => <SortableHeader column={column}>Estado</SortableHeader>,
-            cell: (info) => {
-                const config = getStatusConfig(info.getValue());
-                const Icon = config.icon;
-                return (
-                    <Badge variant="outline" className={`rounded-full pl-1.5 pr-2.5 py-0.5 font-medium border ${config.className}`}>
-                        <Icon className={`w-3.5 h-3.5 mr-1.5 ${config.iconClassName}`} />
-                        <span className="hidden sm:inline">{config.label}</span>
-                        <span className="sm:hidden">{config.label.charAt(0)}</span>
-                    </Badge>
-                );
-            },
-            enableSorting: true,
-        }),
-        columnHelper.accessor("generalInfo.pedido", {
-            header: ({ column }) => <SortableHeader column={column}>Pedido</SortableHeader>,
-            cell: (info) => <span className="font-mono font-medium text-primary">{info.getValue()}</span>,
-            enableSorting: true,
-        }),
-        columnHelper.accessor("generalInfo.posicion", {
-            header: "Posición",
-            cell: (info) => <span className="font-mono text-muted-foreground hidden md:block">{info.getValue() || "-"}</span>,
-        }),
-        columnHelper.accessor("generalInfo.cliente", {
-            header: ({ column }) => <SortableHeader column={column}>Cliente</SortableHeader>,
-            cell: (info) => <span className="font-medium truncate max-w-[100px] sm:max-w-[150px] lg:max-w-[200px] block">{info.getValue()}</span>,
-            enableSorting: true,
-        }),
-        columnHelper.accessor("generalInfo.modeloBomba", {
-            header: "Modelo",
-            cell: (info) => <span className="font-mono text-[11px] sm:text-sm text-muted-foreground truncate max-w-[80px] sm:max-w-none block lg:max-w-[150px]">{info.getValue() || "-"}</span>,
-        }),
-        columnHelper.accessor("generalInfo.ordenTrabajo", {
-            header: "Orden",
-            cell: (info) => <span className="font-mono text-[11px] sm:text-sm text-muted-foreground hidden lg:block xl:block">{info.getValue() || "-"}</span>,
-        }),
-        columnHelper.accessor("generalInfo.numeroBombas", {
-            header: ({ column }) => <SortableHeader column={column}>Nº</SortableHeader>,
-            cell: (info) => <span className="font-mono text-[11px] sm:text-sm text-center block sm:hidden md:block lg:block">{info.getValue()}</span>,
-            enableSorting: true,
-        }),
-        columnHelper.display({
-            id: "actions",
-            cell: () => <ChevronRight className="w-4 h-4 text-muted-foreground" />,
-        }),
-    ], []);
 
     // Filter by status
     const filteredData = useMemo(() => {
         if (statusFilter === "all") return tests;
         return tests.filter(t => t.status === statusFilter);
     }, [tests, statusFilter]);
-
-    // Table instance
-    const table = useReactTable({
-        data: filteredData,
-        columns,
-        state: {
-            globalFilter,
-            sorting,
-        },
-        onGlobalFilterChange: setGlobalFilter,
-        onSortingChange: setSorting,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        initialState: {
-            pagination: {
-                pageSize: 20,
-            },
-        },
-    });
-
-    // Calculate responsive page size
-    useEffect(() => {
-        const calculatePageSize = () => {
-            // Mobile: Fixed page size, allow window scroll
-            if (window.innerWidth < 768) {
-                if (table.getState().pagination.pageSize !== 20) {
-                    table.setPageSize(20);
-                }
-                return;
-            }
-
-            // Desktop: Dynamic page size
-            if (tableContainerRef.current) {
-                const height = tableContainerRef.current.clientHeight;
-                const headerHeight = 44; // Standard table header height
-                const rowHeight = 44; // Adjusted for py-3 (24px) + text-sm (20px) + border
-                const availableHeight = height - headerHeight;
-                const newPageSize = Math.floor(availableHeight / rowHeight);
-                // Ensure at least 3 rows to show something
-                const safePageSize = Math.max(3, Math.min(newPageSize, 100));
-
-                // Only update if changed significantly to avoid jitter
-                if (safePageSize !== table.getState().pagination.pageSize) {
-                    table.setPageSize(safePageSize);
-                }
-            }
-        };
-
-        // Initial calculation
-        calculatePageSize();
-
-        // Observer for container resize
-        const observer = new ResizeObserver(calculatePageSize);
-        if (tableContainerRef.current) {
-            observer.observe(tableContainerRef.current);
-        }
-
-        // Listen to window resize for switching modes
-        window.addEventListener('resize', calculatePageSize);
-
-        return () => {
-            observer.disconnect();
-            window.removeEventListener('resize', calculatePageSize);
-        };
-    }, [table, tests.length]);
 
     // Fetch tests
     const fetchTests = useCallback(async () => {
@@ -378,7 +170,7 @@ export default function DashboardPage() {
                             Pruebas
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                            {table.getFilteredRowModel().rows.length} de {tests.length} registros
+                            {filteredData.length} de {tests.length} registros
                         </p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -437,96 +229,13 @@ export default function DashboardPage() {
                             </Empty>
                         </div>
                     ) : (
-                        <>
-                            {/* Responsive Table View (No Scroll Vertical on Desktop, Auto Height on Mobile) */}
-                            <div ref={tableContainerRef} className="flex-1 w-full overflow-x-auto min-h-[500px] md:min-h-0 md:overflow-y-hidden border rounded-lg bg-background">
-                                <Table>
-                                    <TableHeader className="sticky top-0 z-10 bg-muted/50">
-                                        {table.getHeaderGroups().map((headerGroup) => (
-                                            <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                                                {headerGroup.headers.map((header) => (
-                                                    <TableHead
-                                                        key={header.id}
-                                                        className="whitespace-nowrap text-xs px-4 h-10 bg-muted/50 font-medium"
-                                                    >
-                                                        {header.isPlaceholder
-                                                            ? null
-                                                            : flexRender(header.column.columnDef.header, header.getContext())}
-                                                    </TableHead>
-                                                ))}
-                                            </TableRow>
-                                        ))}
-                                    </TableHeader>
-                                    <TableBody>
-                                        {table.getRowModel().rows.map((row) => (
-                                            <TableRow
-                                                key={row.id}
-                                                className="cursor-pointer hover:bg-muted/50"
-                                                onClick={() => router.push(`/supervisor/test/${row.original.id}`)}
-                                            >
-                                                {row.getVisibleCells().map((cell) => (
-                                                    <TableCell key={cell.id} className="px-4 py-3 text-sm">
-                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-
-                            {/* Pagination - Compact Single Row */}
-                            <div className="flex flex-col sm:flex-row items-center justify-between py-4 sm:py-6 gap-4 shrink-0 border-t mt-4">
-                                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
-                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest hidden lg:inline">Registros</span>
-                                    <div className="flex items-center gap-1">
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="h-7 w-7 border-slate-200 shrink-0"
-                                            onClick={() => table.setPageIndex(0)}
-                                            disabled={!table.getCanPreviousPage()}
-                                        >
-                                            <ChevronsLeft className="w-3.5 h-3.5" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="h-7 w-7 border-slate-200 shrink-0"
-                                            onClick={() => table.previousPage()}
-                                            disabled={!table.getCanPreviousPage()}
-                                        >
-                                            <ChevronLeft className="w-3.5 h-3.5" />
-                                        </Button>
-                                        <div className="flex items-center justify-center px-2 min-w-[3rem] h-7 bg-muted/50 rounded text-[11px] font-bold">
-                                            {table.getState().pagination.pageIndex + 1}
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="h-7 w-7 border-slate-200 text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
-                                            onClick={() => table.nextPage()}
-                                            disabled={!table.getCanNextPage()}
-                                        >
-                                            <ChevronRight className="w-3.5 h-3.5" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="h-7 w-7 border-slate-200 shrink-0"
-                                            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                                            disabled={!table.getCanNextPage()}
-                                        >
-                                            <ChevronsRight className="w-3.5 h-3.5" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="text-[11px] text-muted-foreground font-medium text-center sm:text-right w-full sm:w-auto">
-                                    Pág. <span className="text-foreground">{table.getState().pagination.pageIndex + 1}</span> de <span className="text-foreground">{table.getPageCount()}</span>
-                                    <span className="ml-2 opacity-50">({filteredData.length} registros totales)</span>
-                                </div>
-                            </div>
-                        </>
+                        <DataTable
+                            columns={columns}
+                            data={filteredData}
+                            loading={loading}
+                            onRowClick={(row) => router.push(`/supervisor/test/${row.id}`)}
+                            globalFilter={globalFilter}
+                        />
                     )}
                 </div>
             </div>
