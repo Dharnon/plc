@@ -1,4 +1,11 @@
-import React, { useMemo } from 'react';
+/**
+ * Analytics.tsx - Refactored to use isolated providers
+ * 
+ * Changes:
+ * - useTesting() → useJob() + useNavigation() + useTelemetry()
+ * - resetTest split into navigation + telemetry reset
+ */
+import React, { useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   LineChart,
@@ -12,7 +19,9 @@ import {
 } from 'recharts';
 import { CheckCircle2, Download, FileText, ArrowLeft, RotateCcw, AlertTriangle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTesting } from '@/contexts/TestingContext';
+import { useJob } from '@/contexts/JobProvider';
+import { useNavigation } from '@/contexts/NavigationProvider';
+import { useTelemetry } from '@/contexts/TelemetryProvider';
 
 // Generate theoretical Q-H curve data
 const generateTheoreticalCurve = (nominalFlow: number) => {
@@ -28,7 +37,9 @@ const generateTheoreticalCurve = (nominalFlow: number) => {
 };
 
 export const Analytics: React.FC = () => {
-  const { currentJob, testConfig, capturedPoints, resetTest, setCurrentView } = useTesting();
+  const { currentJob, testConfig, clearJob } = useJob();
+  const { setCurrentView } = useNavigation();
+  const { capturedPoints, resetTelemetry } = useTelemetry();
 
   const isApproved = currentJob?.status === 'OK' || (currentJob?.status !== 'KO');
   const isHistorical = currentJob?.status === 'OK' || currentJob?.status === 'KO';
@@ -38,14 +49,14 @@ export const Analytics: React.FC = () => {
     if (!currentJob || !testConfig) return { theoretical: [], captured: [] };
 
     const theoretical = generateTheoreticalCurve(currentJob.targetFlow);
-    
+
     // Map captured points to Q-H format
     const captured = capturedPoints.map((point, index) => {
       const targetFlow = testConfig.points[index]?.targetFlow || point.flow;
       const head = 12 - (point.pressure * 0.8); // Simplified head calculation from pressure
       const deviation = Math.abs(point.flow - targetFlow);
       const isOutOfTolerance = deviation > targetFlow * 0.05; // 5% tolerance
-      
+
       return {
         flow: targetFlow,
         actualFlow: point.flow,
@@ -61,6 +72,13 @@ export const Analytics: React.FC = () => {
   }, [currentJob, testConfig, capturedPoints]);
 
   const failedPoints = chartData.captured.filter(p => p.isOutOfTolerance);
+
+  // Combined reset function
+  const resetTest = useCallback(() => {
+    resetTelemetry();
+    clearJob();
+    setCurrentView('dashboard');
+  }, [resetTelemetry, clearJob, setCurrentView]);
 
   const handleFinish = () => {
     // In a real app, this would save the report
@@ -163,7 +181,7 @@ export const Analytics: React.FC = () => {
                     return [value.toFixed(2), name];
                   }}
                 />
-                
+
                 {/* Theoretical curve - dashed */}
                 <Line
                   data={chartData.theoretical}

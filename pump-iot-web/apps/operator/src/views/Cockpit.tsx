@@ -1,3 +1,10 @@
+/**
+ * Cockpit.tsx - Refactored to use isolated providers
+ * 
+ * Changes:
+ * - useTesting() → useJob() + useNavigation() + useTelemetry() + useCaptureLogic()
+ * - Business logic extracted to useCaptureLogic hook
+ */
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Gauge, Droplets, Thermometer, Zap, ArrowDownToLine, ArrowLeft } from 'lucide-react';
@@ -5,27 +12,28 @@ import { Scene3D } from '@/components/testing/Scene3D';
 import { ControlPanel } from '@/components/testing/ControlPanel';
 import { TelemetryCard } from '@/components/testing/TelemetryCard';
 import { Stepper } from '@/components/testing/Stepper';
-import { useTesting } from '@/contexts/TestingContext';
+import { useJob } from '@/contexts/JobProvider';
+import { useNavigation } from '@/contexts/NavigationProvider';
+import { useTelemetry } from '@/contexts/TelemetryProvider';
+import { useCaptureLogic } from '@/hooks/useCaptureLogic';
 import { useIsTabletPortrait } from '@/hooks/use-media-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export const Cockpit: React.FC = () => {
+  // Separated concerns from different providers
+  const { currentJob, testConfig } = useJob();
+  const { setCurrentView } = useNavigation();
   const {
-    currentJob,
-    testConfig,
     controls,
     setMotorOn,
     setMotorSpeed,
     setValveOpening,
     telemetry,
-    telemetryHistory,
-    currentPointIndex,
-    isStable,
-    capturePoint,
-    setCurrentView,
-  } = useTesting();
+    telemetryHistory
+  } = useTelemetry();
+  const { isStable, capturePoint, currentPointIndex } = useCaptureLogic();
 
   const isTabletPortrait = useIsTabletPortrait();
 
@@ -43,7 +51,7 @@ export const Cockpit: React.FC = () => {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* 3D Scene Background */}
-      <Scene3D 
+      <Scene3D
         isRunning={controls.motorOn}
         motorSpeed={controls.motorSpeed}
         className="absolute inset-0 z-0"
@@ -64,7 +72,7 @@ export const Cockpit: React.FC = () => {
           >
             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
-          
+
           <div className="bg-card/90 backdrop-blur-xl rounded-xl md:rounded-2xl px-3 md:px-6 py-2 md:py-3 shadow-soft">
             <h1 className="text-sm md:text-xl font-bold text-foreground">Water Pump Testing</h1>
             <p className="text-xs md:text-sm text-muted-foreground">
@@ -73,11 +81,11 @@ export const Cockpit: React.FC = () => {
           </div>
         </div>
 
-        <Badge 
+        <Badge
           className={cn(
             "h-8 md:h-10 px-3 md:px-5 text-xs md:text-sm font-semibold rounded-full",
-            controls.motorOn 
-              ? "bg-success text-success-foreground pulse-success" 
+            controls.motorOn
+              ? "bg-success text-success-foreground pulse-success"
               : "bg-pending text-pending-foreground"
           )}
         >
@@ -156,7 +164,7 @@ export const Cockpit: React.FC = () => {
       ) : (
         <>
           {/* Desktop/Landscape - Left Control Panel */}
-          <div 
+          <div
             className="absolute top-1/2 -translate-y-1/2 z-20"
             style={{ left: 'var(--fluid-edge-spacing)' }}
           >
@@ -171,9 +179,9 @@ export const Cockpit: React.FC = () => {
           </div>
 
           {/* Desktop/Landscape - Right Telemetry Panel */}
-          <div 
+          <div
             className="absolute top-1/2 -translate-y-1/2 z-20"
-            style={{ 
+            style={{
               right: 'var(--fluid-edge-spacing)',
               width: 'clamp(13rem, 19vw, 20rem)',
             }}
@@ -222,7 +230,7 @@ export const Cockpit: React.FC = () => {
       )}
 
       {/* Bottom Stepper Bar */}
-      <div 
+      <div
         className={cn(
           "absolute left-1/2 -translate-x-1/2 z-20 w-full",
           isTabletPortrait ? "bottom-4 max-w-full px-3" : ""

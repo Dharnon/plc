@@ -1,14 +1,23 @@
+/**
+ * Dashboard.tsx - Refactored to use isolated providers
+ * 
+ * Changes:
+ * - useTesting() → useJob() + useNavigation()
+ * - setCapturedPoints moved to TelemetryProvider (used via hook in Analytics)
+ */
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { JobCard } from '@/components/testing/JobCard';
 import { FloatingSidebar } from '@/components/testing/FloatingSidebar';
-import { useTesting, Job } from '@/contexts/TestingContext';
+import { useJob, Job } from '@/contexts/JobProvider';
+import { useNavigation } from '@/contexts/NavigationProvider';
 import { cn } from '@/lib/utils';
 
 type TabType = 'pendientes' | 'historial';
 
 export const Dashboard: React.FC = () => {
-  const { jobs, selectJob, setCurrentView, setTestConfig, setCapturedPoints } = useTesting();
+  const { jobs, selectJob, setTestConfig } = useJob();
+  const { setCurrentView } = useNavigation();
   const [activeTab, setActiveTab] = useState<TabType>('pendientes');
 
   const pendingJobs = jobs.filter(job => job.status === 'GENERADA' || job.status === 'EN_PROCESO');
@@ -25,7 +34,6 @@ export const Dashboard: React.FC = () => {
     selectJob(job);
     // Load historical test results if available
     if (job.testResults) {
-      setCapturedPoints(job.testResults.capturedPoints);
       setTestConfig(job.testResults.testConfig);
     }
     setCurrentView('analytics');
@@ -125,7 +133,7 @@ export const Dashboard: React.FC = () => {
               No hay trabajos {activeTab === 'pendientes' ? 'pendientes' : 'en el historial'}
             </h3>
             <p className="text-muted-foreground">
-              {activeTab === 'pendientes' 
+              {activeTab === 'pendientes'
                 ? 'Todos los trabajos han sido completados'
                 : 'Aún no se han completado pruebas'}
             </p>

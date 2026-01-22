@@ -2,9 +2,16 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ImportModal } from "@/components/import-modal";
+import { getTests } from "@/lib/api";
+
+// Dynamic import for bundle optimization (Vercel: bundle-dynamic-imports)
+const ImportModal = dynamic(
+    () => import("@/components/import-modal").then(m => m.ImportModal),
+    { ssr: false }
+);
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -40,13 +47,12 @@ export default function DashboardPage() {
         return tests.filter(t => t.status === statusFilter);
     }, [tests, statusFilter]);
 
-    // Fetch tests
+    // Fetch tests using centralized API service (SOLID: Dependency Inversion)
     const fetchTests = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch("http://localhost:4000/api/tests");
-            const data = await response.json();
-            setTests(data);
+            const data = await getTests();
+            setTests(data as TestItem[]);
         } catch (error) {
             console.error("Error fetching tests:", error);
         } finally {

@@ -1,15 +1,24 @@
+/**
+ * SetupModal.tsx - Refactored to use isolated providers
+ * 
+ * Changes:
+ * - useTesting() → useJob() + useNavigation()
+ */
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useTesting, type TestPoint } from '@/contexts/TestingContext';
+import { useJob, TestPoint } from '@/contexts/JobProvider';
+import { useNavigation } from '@/contexts/NavigationProvider';
 import { cn } from '@/lib/utils';
 
 const BANK_OPTIONS = ['A', 'B', 'C', 'D', 'E'] as const;
 
 export const SetupModal: React.FC = () => {
-  const { currentJob, testConfig, setTestConfig, setCurrentView } = useTesting();
+  const { currentJob, testConfig, setTestConfig } = useJob();
+  const { setCurrentView } = useNavigation();
+
   const [selectedBank, setSelectedBank] = useState<typeof BANK_OPTIONS[number]>(testConfig?.bankId || 'A');
   const [testPressure, setTestPressure] = useState(testConfig?.testPressure || 6);
   const [points, setPoints] = useState<TestPoint[]>(
