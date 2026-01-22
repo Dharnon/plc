@@ -2,10 +2,12 @@
     "name": "pump-iot-web-monorepo",
     "version": "0.0.0",
     "private": true,
+    "packageManager": "pnpm@9.15.4",
     "scripts": {
-        "dev": "pnpm -r --parallel dev",
-        "build": "pnpm -r build",
-        "lint": "pnpm -r lint"
+        "dev": "turbo dev",
+        "build": "turbo build",
+        "lint": "turbo lint",
+        "type-check": "turbo type-check"
     },
     "devDependencies": {
         "turbo": "^2.3.3"

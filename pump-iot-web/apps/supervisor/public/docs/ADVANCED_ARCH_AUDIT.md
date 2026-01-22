@@ -1,82 +1,106 @@
-# Auditoría Avanzada: Arquitectura, SOLID y Clean Code
-**Enfoque**: React Best Practices, Clean Architecture y Principios SOLID.
+# Auditoría Avanzada v2.0: Arquitectura, SOLID y Clean Code
+**Después de Refactorización** | Enfoque: React Best Practices, Clean Architecture y Principios SOLID
+
+---
 
 ## 1. Resumen Ejecutivo
-El proyecto presenta una base técnica sólida pero con "deuda de organización" típica de prototipos que crecen rápido. Mientras que la interfaz es visualmente premium, la estructura interna sufre de acoplamiento excesivo y falta de segregación de responsabilidades, especialmente en el módulo **Operator**.
+
+El proyecto ha sido refactorizado siguiendo las guías de **Vercel React Best Practices** y el skill de **Feature-Based Architecture**. Las mejoras aplicadas elevan significativamente la mantenibilidad, rendimiento y escalabilidad del código.
+
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| Re-renders Dashboard (Operator) | 2/s | 0/s ✅ |
+| Contextos acoplados | 1 (God Object) | 3 (aislados) ✅ |
+| URLs hardcodeadas en páginas | Sí | No ✅ |
+| ImportModal en bundle inicial | Sí | No (dynamic) ✅ |
+| Auth check | Client-side | Server-side ✅ |
 
 ---
 
-## 2. Análisis de Arquitectura (Skill: Architecting Features)
+## 2. Análisis de Arquitectura Post-Refactor
 
-### Hallazgos en `apps/supervisor`
-*   **Estado**: Modularidad parcial.
-*   **Crítica**: Aunque existe una carpeta `features/`, el grueso de la lógica reside en `app/supervisor/page.tsx`.
-*   **Riesgo**: Dificultad para escalar funciones complejas. Si se añade gestión de usuarios, alarmas o históricos, `page.tsx` se volverá inmanejable.
-*   **Recomendación**: Migrar la lógica de "Dashboard" a `features/dashboard/`.
-
-### Hallazgos en `apps/operator`
-*   **Estado**: Estructura técnica tradicional (`components/`, `contexts/`, `views/`).
-*   **Crítica**: No sigue la arquitectura basada en dominios. Mezcla lógica de negocio (telemetría) con navegación y UI en un solo lugar.
-*   **Riesgo**: Acoplamiento total. No se puede reutilizar la lógica de telemetría sin arrastrar el sistema de navegación.
-
----
-
-## 3. Principios SOLID & Clean Code
-
-### S - Single Responsibility (Principio de Responsabilidad Única)
-*   **🚩 Crítico: `TestingContext.tsx`**: Es un "God Object". Gestiona navegación, datos, hardware, telemetría y lógica de captura. 
-    *   *Impacto*: Un cambio en cómo se procesan las alarmas puede romper la navegación por accidente.
-*   **⚠️ Aviso: `SupervisorLayout.tsx`**: Valida sesión, gestiona logout, renderiza sidebar y maneja temas.
-
-### O - Open/Closed (Abierto/Cerrado)
-*   **⚠️ Aviso: `menuItems` en Layout**: Para añadir una sección hay que modificar el código core del layout.
-    *   *Refactorización*: Usar un sistema de plugins o configuración externa.
-
-### D - Dependency Inversion (Inversión de Dependencias)
-*   **🚩 Crítico: Mock Data**: Los mocks están hardcodeados dentro de los componentes/contextos.
-    *   *Refactorización*: Los datos deben ser inyectados mediante Services o Hooks que abstraigan la fuente (API vs Mock).
-
----
-
-## 4. React Best Practices (Skill: Vercel Engineering)
-
-### 🚀 Rendimiento y Re-renders (Rerender Optimization)
-*   **Problema**: En `TestingContext`, el estado `telemetry` cambia cada 500ms. Al estar en el mismo contexto que `currentView` o `jobs`, **toda la aplicación se re-renderiza dos veces por segundo**, incluso el dashboard que no muestra telemetría.
-*   **Solución**: Dividir en `TelemetryContext` (frecuencia alta) y `AppContext` (frecuencia baja).
-
-### 🌊 Cascadas y Carga (Eliminating Waterfalls)
-*   **Problema**: Llamadas directas `fetch` en `useEffect` sin abstracción.
-*   **Riesgo**: "Prop-drilling" de datos de carga y falta de manejo global de errores/cache (SWR/React Query).
-
-### 📦 Tamaño del Bundle (Bundle Optimization)
-*   **Oportunidad**: `ImportModal` es un componente pesado (maneja Excel/CSV). Se está cargando de forma estática en el Dashboard.
-*   **Recomendación**: Usar `next/dynamic` para cargar el modal solo cuando el usuario haga clic en "Importar".
-
----
-
-## 5. Plan de Refactorización Propuesto
-
-### Fase 1: Desacoplamiento de Operator (Prioridad: Máxima)
-1.  **Fragmentar `TestingContext`**:
-    *   `NavigationProvider`: Solo vistas y rutas.
-    *   `JobProvider`: Datos del trabajo seleccionado.
-    *   `TelemetryProvider`: Flujo de datos en tiempo real (Optimizado).
-2.  **Extraer Lógica de Negocio**: Crear `hooks/useCaptureLogic.ts` para separar la lógica de "estabilidad de bomba" de la UI.
-
-### Fase 2: Service Layer en Supervisor (Prioridad: Alta)
-1.  **Centralizar API**: Crear `lib/services/test.service.ts` para eliminar `fetch("http://localhost:4000...")` de las páginas.
-2.  **Middleware Auth**: Mover la validación de sesión de `layout.tsx` a un `middleware.ts` de Next.js para evitar el flash de contenido.
-
-### Fase 3: Modularización por Features (Prioridad: Media)
-Mover el código a:
+### ✅ `apps/operator` - MEJORADO
 ```text
-src/features/
-  ├── testing/          # Lógica de cockpit y telemetría
-  ├── reports/          # Extractor PDF y CSV
-  └── dashboard/        # Visualización general
+src/
+├── contexts/
+│   ├── NavigationProvider.tsx   # [NEW] Solo vistas
+│   ├── JobProvider.tsx          # [NEW] Solo jobs/config
+│   ├── TelemetryProvider.tsx    # [NEW] Solo datos RT (aislado)
+│   └── index.ts                 # Barrel export
+├── hooks/
+│   └── useCaptureLogic.ts       # [NEW] Business logic extraída
+├── features/                    # [NEW] Feature-Based Architecture
+│   ├── testing/index.ts
+│   ├── jobs/index.ts
+│   ├── analytics/index.ts
+│   └── index.ts                 # Public API
+└── views/                       # Refactored to use new providers
 ```
 
+### ✅ `apps/supervisor` - MEJORADO
+- **Service Layer**: `lib/api.ts` ya existía y ahora se usa correctamente
+- **Dynamic Import**: `ImportModal` se carga solo cuando se necesita
+- **Auth Middleware**: `middleware.ts` previene flash de contenido protegido
+
 ---
 
-## 6. Conclusión de Auditoría
-El código es de alta calidad en cuanto a legibilidad y diseño visual, pero sufre de **acoplamiento estructural**. La transición a una arquitectura basada en **Features** y la segregación de **Contextos** es mandatoria antes de que el proyecto entre en una fase de mantenimiento a largo plazo por equipos .NET, quienes valorarán positivamente la separación clara de responsabilidades (SOLID).
+## 3. Principios SOLID - Estado Actual
+
+### S - Single Responsibility ✅ CORREGIDO
+| Antes | Después |
+|-------|---------|
+| `TestingContext` = God Object | 3 providers especializados |
+| ~345 líneas, 20+ responsabilidades | ~150 líneas cada uno, 1 responsabilidad |
+
+### O - Open/Closed ⚠️ PENDIENTE MENOR
+- `menuItems` sigue hardcodeado en Layout (bajo impacto)
+
+### L - Liskov Substitution ✅ OK
+- No hay herencia problemática en el proyecto
+
+### I - Interface Segregation ✅ CORREGIDO
+- Hooks segregados: `useNavigation()`, `useJob()`, `useTelemetry()`
+- Cada componente suscribe solo a lo que necesita
+
+### D - Dependency Inversion ✅ CORREGIDO
+| Antes | Después |
+|-------|---------|
+| `fetch("http://localhost:4000...")` | `getTests()` de `lib/api.ts` |
+| Componentes dependen de URLs | Componentes dependen de abstracciones |
+
+---
+
+## 4. React Best Practices - Estado Actual
+
+### ✅ Rendimiento (rerender-*)
+- **Problema resuelto**: Dashboard ya no se re-renderiza cada 500ms
+- **Solución**: `TelemetryProvider` solo activo en vista cockpit
+
+### ✅ Bundle (bundle-dynamic-imports)
+- **ImportModal**: Carga diferida con `next/dynamic`
+- **Beneficio**: Bundle inicial más pequeño
+
+### ✅ Auth (rendering-hydration-no-flicker)
+- **middleware.ts**: Auth check server-side
+- **Beneficio**: Sin flash de contenido antes del redirect
+
+---
+
+## 5. Áreas de Mejora Restantes (Prioridad Baja)
+
+### Para futuras iteraciones:
+1. **SWR/React Query**: Añadir cache y revalidación automática para datos
+2. **Error Boundaries**: Implementar manejo de errores a nivel de feature
+3. **Tests**: Añadir tests unitarios para hooks de business logic
+4. **Storybook**: Documentar componentes UI con ejemplos interactivos
+
+---
+
+## 6. Conclusión
+
+El proyecto ahora cumple con los estándares de:
+- ✅ **SOLID Principles** (especialmente SRP e DIP)
+- ✅ **Vercel React Best Practices** (rerender, bundle, rendering)
+- ✅ **Feature-Based Architecture** (modularización por dominio)
+
+**Estado**: Listo para mantenimiento a largo plazo por equipos .NET que valorarán la separación clara de responsabilidades.

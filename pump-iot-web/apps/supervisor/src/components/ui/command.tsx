@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { type DialogProps } from '@radix-ui/react-dialog';
 import { Command as CommandPrimitive } from 'cmdk';
-import { Check, LucideIcon, Search } from 'lucide-react';
+import { Check, type LucideIcon, type LucideProps, Search } from 'lucide-react';
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
@@ -22,12 +22,13 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 type CommandDialogProps = DialogProps & { className?: string };
 
 const CommandDialog = ({ children, className, ...props }: CommandDialogProps) => {
+  const childrenArray = React.Children.toArray(children);
   return (
     <Dialog {...props}>
       <DialogContent className={cn('overflow-hidden p-0 shadow-lg', className)}>
         <DialogTitle className="hidden" />
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
-          {children}
+          {childrenArray as any}
         </Command>
       </DialogContent>
     </Dialog>
@@ -110,17 +111,17 @@ const CommandShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanE
   );
 };
 
-interface ButtonArrowProps extends React.SVGProps<SVGSVGElement> {
-  icon?: LucideIcon; // Allows passing any Lucide icon
+interface CommandCheckProps extends LucideProps {
+  icon?: LucideIcon;
 }
 
-function CommandCheck({ icon: Icon = Check, className, ...props }: ButtonArrowProps) {
+function CommandCheck({ icon: Icon = Check, className, ...props }: CommandCheckProps) {
   return (
     <Icon
       data-slot="command-check"
       data-check="true"
       className={cn('size-4 ms-auto text-primary', className)}
-      {...props}
+      {...(props as any)}
     />
   );
 }
