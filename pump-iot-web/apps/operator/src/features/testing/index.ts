@@ -6,11 +6,11 @@
  */
 
 // Views (main entry points)
-export { Cockpit } from '../../../views/Cockpit';
+export { Cockpit } from '../../views/Cockpit';
 
 // Hooks (business logic)
-export { useCaptureLogic } from './hooks/useCaptureLogic';
+export { useCaptureLogic } from '../../hooks/useCaptureLogic';
 
 // Context (if needed by parent)
-export { TelemetryProvider, useTelemetry } from '../../../contexts/TelemetryProvider';
-export type { ControlState } from '../../../contexts/TelemetryProvider';
+export { TelemetryProvider, useTelemetry } from '../../contexts/TelemetryProvider';
+export type { ControlState } from '../../contexts/TelemetryProvider';

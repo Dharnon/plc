@@ -200,5 +200,4 @@ export const useJob = () => {
     return context;
 };
 
-// Re-export types for convenience
-export type { TelemetryData, TestPoint, TestConfig };
+
