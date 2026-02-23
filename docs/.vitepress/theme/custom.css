@@ -1,0 +1,20 @@
+:root {
+  --vp-c-brand: #00d4ff;
+  --vp-c-brand-light: #33ddff;
+  --vp-c-brand-dark: #00a8cc;
+}
+
+.vp-doc h1 {
+  font-weight: 700;
+}
+
+.mermaid-diagram {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
